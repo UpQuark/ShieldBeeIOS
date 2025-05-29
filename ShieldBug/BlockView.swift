@@ -8,21 +8,22 @@
 import SwiftUI
 
 struct BlockView: View {
-    @State private var isProtectionEnabled = false
+    @StateObject private var vpnManager = VPNManager()
+    @State private var showingPermissionAlert = false
     
     var body: some View {
         NavigationView {
             VStack(spacing: 30) {
-                Image(systemName: isProtectionEnabled ? "shield.fill" : "shield")
+                Image(systemName: vpnManager.isConnected ? "shield.fill" : "shield")
                     .font(.system(size: 60))
-                    .foregroundColor(isProtectionEnabled ? .green : .red)
-                    .animation(.easeInOut(duration: 0.3), value: isProtectionEnabled)
+                    .foregroundColor(vpnManager.isConnected ? .green : .red)
+                    .animation(.easeInOut(duration: 0.3), value: vpnManager.isConnected)
                 
                 Text("Block & Protect")
                     .font(.title)
                     .fontWeight(.bold)
                 
-                Text("Manage your security settings")
+                Text("VPN-based content blocking")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
@@ -31,11 +32,37 @@ struct BlockView: View {
                     Text("Protection Status")
                         .font(.headline)
                     
-                    Text(isProtectionEnabled ? "ACTIVE" : "INACTIVE")
+                    Text(vpnManager.isConnected ? "ACTIVE" : "INACTIVE")
                         .font(.title2)
                         .fontWeight(.bold)
-                        .foregroundColor(isProtectionEnabled ? .green : .red)
-                        .animation(.easeInOut(duration: 0.3), value: isProtectionEnabled)
+                        .foregroundColor(vpnManager.isConnected ? .green : .red)
+                        .animation(.easeInOut(duration: 0.3), value: vpnManager.isConnected)
+                    
+                    Text("VPN: \(vpnManager.connectionStatus.description)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                )
+                
+                // Blocked URLs info
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Blocked Sites:")
+                        .font(.headline)
+                    
+                    ForEach(VPNManager.blockedURLs, id: \.self) { url in
+                        HStack {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.red)
+                                .font(.caption)
+                            Text(url)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
                 }
                 .padding()
                 .background(
@@ -47,12 +74,24 @@ struct BlockView: View {
                 VStack(spacing: 15) {
                     HStack {
                         Image(systemName: "shield.lefthalf.filled")
-                            .foregroundColor(isProtectionEnabled ? .green : .gray)
-                        Text("Enable Protection")
+                            .foregroundColor(vpnManager.isConnected ? .green : .gray)
+                        Text("Enable VPN Protection")
                             .font(.headline)
                         Spacer()
-                        Toggle("", isOn: $isProtectionEnabled)
-                            .labelsHidden()
+                        Toggle("", isOn: Binding(
+                            get: { vpnManager.isConnected },
+                            set: { _ in
+                                if vpnManager.connectionStatus == .invalid {
+                                    // Request permission first
+                                    vpnManager.requestVPNPermission()
+                                    showingPermissionAlert = true
+                                } else {
+                                    vpnManager.toggleVPN()
+                                }
+                            }
+                        ))
+                        .labelsHidden()
+                        .disabled(vpnManager.connectionStatus == .connecting || vpnManager.connectionStatus == .disconnecting)
                     }
                     .padding()
                     .background(
@@ -67,6 +106,13 @@ struct BlockView: View {
             }
             .padding()
             .navigationTitle("Block")
+            .alert("VPN Permission Required", isPresented: $showingPermissionAlert) {
+                Button("OK") {
+                    // User can try toggling again after granting permission
+                }
+            } message: {
+                Text("ShieldBug needs VPN permission to block websites. Please allow VPN configuration in the system dialog, then try again.")
+            }
         }
     }
 }
