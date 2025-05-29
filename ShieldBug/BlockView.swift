@@ -8,12 +8,15 @@
 import SwiftUI
 
 struct BlockView: View {
+    @State private var isProtectionEnabled = false
+    
     var body: some View {
         NavigationView {
-            VStack(spacing: 20) {
-                Image(systemName: "shield.fill")
+            VStack(spacing: 30) {
+                Image(systemName: isProtectionEnabled ? "shield.fill" : "shield")
                     .font(.system(size: 60))
-                    .foregroundColor(.red)
+                    .foregroundColor(isProtectionEnabled ? .green : .red)
+                    .animation(.easeInOut(duration: 0.3), value: isProtectionEnabled)
                 
                 Text("Block & Protect")
                     .font(.title)
@@ -23,34 +26,40 @@ struct BlockView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                 
-                VStack(spacing: 15) {
-                    Button(action: {
-                        // Block action placeholder
-                    }) {
-                        HStack {
-                            Image(systemName: "shield.lefthalf.filled")
-                            Text("Enable Protection")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                    }
+                // Status indicator
+                VStack(spacing: 10) {
+                    Text("Protection Status")
+                        .font(.headline)
                     
-                    Button(action: {
-                        // Unblock action placeholder
-                    }) {
-                        HStack {
-                            Image(systemName: "shield.slash")
-                            Text("Disable Protection")
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.gray)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                    Text(isProtectionEnabled ? "ACTIVE" : "INACTIVE")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(isProtectionEnabled ? .green : .red)
+                        .animation(.easeInOut(duration: 0.3), value: isProtectionEnabled)
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(.systemGray6))
+                )
+                
+                // Protection toggle
+                VStack(spacing: 15) {
+                    HStack {
+                        Image(systemName: "shield.lefthalf.filled")
+                            .foregroundColor(isProtectionEnabled ? .green : .gray)
+                        Text("Enable Protection")
+                            .font(.headline)
+                        Spacer()
+                        Toggle("", isOn: $isProtectionEnabled)
+                            .labelsHidden()
                     }
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color(.systemBackground))
+                            .shadow(color: .gray.opacity(0.2), radius: 2, x: 0, y: 1)
+                    )
                 }
                 .padding(.horizontal)
                 
