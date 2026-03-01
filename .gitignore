@@ -1,0 +1,77 @@
+# ========================
+# Xcode
+# ========================
+*.xcuserstate
+*.xcscmblueprint
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+xcuserdata/
+.DS_Store
+
+# Build artifacts
+build/
+DerivedData/
+*.o
+*.d
+*.LinkFileList
+*.app
+*.framework
+*.xcarchive
+*.pkg
+
+# Xcode generated
+GeneratedAssetSymbols.swift
+GeneratedAssetSymbols+Extras.swift
+
+# SwiftPM
+.build/
+.swiftpm/xcode/
+Packages/
+Package.resolved
+
+# CocoaPods
+Pods/
+*.xcworkspace
+!default.xcworkspace
+
+# Carthage
+Carthage/Build/
+
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+
+# ========================
+# Secrets & Credentials
+# ========================
+*.p12
+*.p8
+*.mobileprovision
+*.pem
+*.key
+*.cer
+*.certSigningRequest
+AuthKey_*.p8
+GoogleService-Info.plist
+Secrets.swift
+Secrets.plist
+secrets.json
+.env
+.env.*
+Config/Private/
+PrivateKeys/
+
+# ========================
+# OS / Editor
+# ========================
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
