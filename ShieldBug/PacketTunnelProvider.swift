@@ -15,7 +15,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     override func startTunnel(options: [String : NSObject]?, completionHandler: @escaping (Error?) -> Void) {
         
         // Get blocked URLs from configuration
-        if let providerConfig = protocolConfiguration.providerConfiguration,
+        if let providerConfig = (protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration,
            let urls = providerConfig["blockedURLs"] as? [String] {
             blockedURLs = urls
         }
@@ -63,11 +63,11 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             var allowedProtocols: [NSNumber] = []
             
             for (index, packet) in packets.enumerated() {
-                let protocol = protocols[index]
-                
+                let proto = protocols[index]
+
                 if self.shouldAllowPacket(packet) {
                     allowedPackets.append(packet)
-                    allowedProtocols.append(protocol)
+                    allowedProtocols.append(proto)
                 } else {
                     // Packet is blocked - don't add to allowed arrays
                     print("Blocked packet to restricted domain")
