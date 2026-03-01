@@ -12,15 +12,21 @@ echo "Found device: $DEVICE_ID"
 APP_PATH="$PROJECT_DIR/build/Debug-iphoneos/ShieldBug.app"
 
 echo "Building ShieldBug..."
-xcodebuild \
+BUILD_OUTPUT=$(xcodebuild \
   -project "$PROJECT_DIR/ShieldBug.xcodeproj" \
   -target ShieldBug \
   -configuration Debug \
   -sdk iphoneos \
   SUPPORTED_PLATFORMS="iphoneos iphonesimulator" \
   -allowProvisioningUpdates \
-  -allowProvisioningDeviceRegistration \
-  | grep -E "error:|warning:|BUILD SUCCEEDED|BUILD FAILED"
+  -allowProvisioningDeviceRegistration 2>&1)
+
+echo "$BUILD_OUTPUT" | grep -E "error:|warning:|BUILD SUCCEEDED|BUILD FAILED"
+
+if echo "$BUILD_OUTPUT" | grep -q "BUILD FAILED"; then
+  echo "Build failed. Aborting."
+  exit 1
+fi
 
 echo "Installing on device $DEVICE_ID..."
 xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH"

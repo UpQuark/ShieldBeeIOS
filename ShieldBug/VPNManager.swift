@@ -11,8 +11,8 @@ import NetworkExtension
 class VPNManager: ObservableObject {
     @Published var isConnected = false
     @Published var connectionStatus: NEVPNStatus = .invalid
-    
-    private var vpnManager: NEVPNManager?
+
+    private var vpnManager: NETunnelProviderManager?
     
     // Static array of blocked URLs
     static let blockedURLs = [
@@ -28,17 +28,33 @@ class VPNManager: ObservableObject {
     }
     
     private func setupVPN() {
-        vpnManager = NEVPNManager.shared()
-        
-        // Load existing configuration
-        vpnManager?.loadFromPreferences { [weak self] error in
+        NETunnelProviderManager.loadAllFromPreferences { [weak self] managers, error in
+            guard let self = self else { return }
+
             if let error = error {
                 print("Failed to load VPN preferences: \(error)")
-                return
             }
-            
-            DispatchQueue.main.async {
-                self?.updateConnectionStatus()
+
+            if let existing = managers?.first {
+                self.vpnManager = existing
+                DispatchQueue.main.async { self.updateConnectionStatus() }
+            } else {
+                // First launch — create config and trigger permission dialog
+                let manager = NETunnelProviderManager()
+                manager.localizedDescription = "ShieldBug VPN"
+                let proto = NETunnelProviderProtocol()
+                proto.providerBundleIdentifier = "shieldbug.ShieldBug.ShieldBug-VPN-Extension"
+                proto.serverAddress = "127.0.0.1"
+                manager.protocolConfiguration = proto
+                manager.isEnabled = true
+                manager.saveToPreferences { saveError in
+                    if let saveError = saveError {
+                        print("Failed to request VPN permission: \(saveError)")
+                        return
+                    }
+                    self.vpnManager = manager
+                    DispatchQueue.main.async { self.updateConnectionStatus() }
+                }
             }
         }
     }
@@ -75,7 +91,7 @@ class VPNManager: ObservableObject {
         
         // Configure the VPN
         let protocolConfiguration = NETunnelProviderProtocol()
-        protocolConfiguration.providerBundleIdentifier = "com.shieldbug.vpn-extension" // This will need to match your extension
+        protocolConfiguration.providerBundleIdentifier = "shieldbug.ShieldBug.ShieldBug-VPN-Extension"
         protocolConfiguration.serverAddress = "127.0.0.1" // Local VPN
         
         // Pass blocked URLs to the VPN extension
@@ -108,23 +124,7 @@ class VPNManager: ObservableObject {
     }
     
     func requestVPNPermission() {
-        guard let vpnManager = vpnManager else { return }
-        
-        vpnManager.loadFromPreferences { error in
-            if let error = error {
-                print("Failed to load preferences: \(error)")
-                return
-            }
-            
-            // This will trigger the permission dialog
-            vpnManager.saveToPreferences { error in
-                if let error = error {
-                    print("Failed to save preferences: \(error)")
-                } else {
-                    print("VPN permission granted")
-                }
-            }
-        }
+        setupVPN()
     }
 }
 
