@@ -25,4 +25,5 @@ xcodebuild \
 echo "Installing on device $DEVICE_ID..."
 xcrun devicectl device install app --device "$DEVICE_ID" "$APP_PATH"
 
-echo "Done."
+echo "Launching app (Ctrl+C to detach)..."
+xcrun devicectl device process launch --console --device "$DEVICE_ID" shieldbug.ShieldBug
