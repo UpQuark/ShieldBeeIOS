@@ -67,6 +67,25 @@ class VPNManager: ObservableObject {
         ) { [weak self] _ in
             self?.updateConnectionStatus()
         }
+
+        // Restart the tunnel whenever the block list changes so new rules take effect immediately.
+        NotificationCenter.default.addObserver(
+            forName: .blockListDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.restartIfActive()
+        }
+    }
+
+    private func restartIfActive() {
+        guard let manager = vpnManager,
+              manager.connection.status == .connected else { return }
+        disconnectVPN()
+        // Give the tunnel a moment to stop before reconnecting.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.connectVPN()
+        }
     }
     
     private func updateConnectionStatus() {

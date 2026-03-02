@@ -192,9 +192,11 @@ class ShieldBeeStore: ObservableObject {
         return Array(Set(siteDomains + categoryDomains))
     }
 
-    /// Writes the active domain list to UserDefaults so the VPN extension picks it up.
+    /// Writes the active domain list to UserDefaults so the VPN extension picks it up,
+    /// then notifies VPNManager to restart the tunnel if it is already running.
     private func syncToVPN() {
         UserDefaults.standard.set(activeDomains(), forKey: "blockedURLs")
+        NotificationCenter.default.post(name: .blockListDidChange, object: nil)
     }
 
     // MARK: - Persistence
@@ -205,6 +207,17 @@ class ShieldBeeStore: ObservableObject {
         schedules    = decode([BlockSchedule].self, forKey: Keys.schedules)  ?? []
         preferences  = decode(UserPreferences.self, forKey: Keys.preferences) ?? UserPreferences()
         blockCount   = defaults.integer(forKey: Keys.blockCount)
+
+        // Migrate from the old flat-array format written directly by HomeView.
+        // The old key "blockedURLs" held a [String]; new storage is store.blockedSites (JSON).
+        if blockedSites.isEmpty {
+            let oldURLs = defaults.stringArray(forKey: "blockedURLs") ?? []
+            if !oldURLs.isEmpty {
+                blockedSites = oldURLs.map { BlockedSite(domain: $0) }
+                persist()
+                // "blockedURLs" already contains the correct list, so no syncToVPN needed here.
+            }
+        }
     }
 
     private func persist() {
@@ -231,6 +244,12 @@ class ShieldBeeStore: ObservableObject {
         static let preferences  = "store.preferences"
         static let blockCount   = "store.blockCount"
     }
+}
+
+// MARK: - Notification names
+
+extension Notification.Name {
+    static let blockListDidChange = Notification.Name("shieldbug.blockListDidChange")
 }
 
 // MARK: - Category domain lists (placeholder)
