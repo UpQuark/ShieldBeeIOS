@@ -69,7 +69,11 @@ struct HomeView: View {
     }
 
     private func addURL() {
-        let trimmed = newURL.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var trimmed = newURL.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        for scheme in ["https://", "http://"] {
+            if trimmed.hasPrefix(scheme) { trimmed = String(trimmed.dropFirst(scheme.count)) }
+        }
+        trimmed = trimmed.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         guard !trimmed.isEmpty, !blockedURLs.contains(trimmed) else { return }
         blockedURLs.append(trimmed)
         save()
