@@ -113,6 +113,14 @@ struct BlockView: View {
             } message: {
                 Text("ShieldBug needs VPN permission to block websites. Please allow VPN configuration in the system dialog, then try again.")
             }
+            .alert("VPN Error", isPresented: Binding(
+                get: { vpnManager.errorMessage != nil },
+                set: { if !$0 { vpnManager.errorMessage = nil } }
+            )) {
+                Button("OK") { vpnManager.errorMessage = nil }
+            } message: {
+                Text(vpnManager.errorMessage ?? "")
+            }
         }
     }
 }

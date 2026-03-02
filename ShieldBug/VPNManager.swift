@@ -11,6 +11,7 @@ import NetworkExtension
 class VPNManager: ObservableObject {
     @Published var isConnected = false
     @Published var connectionStatus: NEVPNStatus = .invalid
+    @Published var errorMessage: String? = nil
 
     private var vpnManager: NETunnelProviderManager?
     
@@ -33,6 +34,7 @@ class VPNManager: ObservableObject {
 
             if let error = error {
                 print("Failed to load VPN preferences: \(error)")
+                DispatchQueue.main.async { self.errorMessage = "Load preferences failed: \(error.localizedDescription)" }
             }
 
             if let existing = managers?.first {
@@ -47,9 +49,11 @@ class VPNManager: ObservableObject {
                 proto.serverAddress = "127.0.0.1"
                 manager.protocolConfiguration = proto
                 manager.isEnabled = true
-                manager.saveToPreferences { saveError in
+                manager.saveToPreferences { [weak self] saveError in
+                    guard let self = self else { return }
                     if let saveError = saveError {
                         print("Failed to request VPN permission: \(saveError)")
+                        DispatchQueue.main.async { self.errorMessage = "Save preferences failed: \(saveError.localizedDescription)" }
                         return
                     }
                     self.vpnManager = manager
@@ -105,16 +109,19 @@ class VPNManager: ObservableObject {
         
         // Save the configuration
         vpnManager.saveToPreferences { [weak self] error in
+            guard let self = self else { return }
             if let error = error {
                 print("Failed to save VPN configuration: \(error)")
+                DispatchQueue.main.async { self.errorMessage = "Save config failed: \(error.localizedDescription)" }
                 return
             }
-            
+
             // Start the VPN connection
             do {
                 try vpnManager.connection.startVPNTunnel()
             } catch {
                 print("Failed to start VPN: \(error)")
+                DispatchQueue.main.async { self.errorMessage = "Start tunnel failed: \(error.localizedDescription)" }
             }
         }
     }

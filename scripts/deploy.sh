@@ -18,9 +18,7 @@ xcodebuild \
   -target ShieldBug \
   -configuration Debug \
   -sdk iphoneos \
-  SUPPORTED_PLATFORMS="iphoneos iphonesimulator" \
-  -allowProvisioningUpdates \
-  -allowProvisioningDeviceRegistration 2>&1 \
+  SUPPORTED_PLATFORMS="iphoneos iphonesimulator" 2>&1 \
   | grep -E "error:|warning:|BUILD SUCCEEDED|BUILD FAILED"
 
 echo "Installing on device $DEVICE_ID..."
