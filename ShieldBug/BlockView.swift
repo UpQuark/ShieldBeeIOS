@@ -19,7 +19,7 @@ struct BlockView: View {
                     .foregroundColor(vpnManager.isConnected ? .green : .red)
                     .animation(.easeInOut(duration: 0.3), value: vpnManager.isConnected)
                 
-                Text("Block & Protect")
+                Text("VPN Setup")
                     .font(.title)
                     .fontWeight(.bold)
                 
@@ -41,28 +41,6 @@ struct BlockView: View {
                     Text("VPN: \(vpnManager.connectionStatus.description)")
                         .font(.caption)
                         .foregroundColor(.secondary)
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(.systemGray6))
-                )
-                
-                // Blocked URLs info
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Blocked Sites:")
-                        .font(.headline)
-                    
-                    ForEach(VPNManager.blockedURLs, id: \.self) { url in
-                        HStack {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.red)
-                                .font(.caption)
-                            Text(url)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
                 }
                 .padding()
                 .background(
@@ -105,7 +83,7 @@ struct BlockView: View {
                 Spacer()
             }
             .padding()
-            .navigationTitle("Block")
+            .navigationTitle("Setup")
             .alert("VPN Permission Required", isPresented: $showingPermissionAlert) {
                 Button("OK") {
                     // User can try toggling again after granting permission

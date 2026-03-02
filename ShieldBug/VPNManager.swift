@@ -15,13 +15,9 @@ class VPNManager: ObservableObject {
 
     private var vpnManager: NETunnelProviderManager?
     
-    // Static array of blocked URLs
-    static let blockedURLs = [
-        "reddit.com",
-        "www.reddit.com",
-        "old.reddit.com",
-        "new.reddit.com"
-    ]
+    static var blockedURLs: [String] {
+        UserDefaults.standard.stringArray(forKey: "blockedURLs") ?? []
+    }
     
     init() {
         setupVPN()

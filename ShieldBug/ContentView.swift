@@ -12,14 +12,14 @@ struct ContentView: View {
         TabView {
             HomeView()
                 .tabItem {
-                    Image(systemName: "house.fill")
-                    Text("Home")
+                    Image(systemName: "slash.circle.fill")
+                    Text("Block")
                 }
-            
+
             BlockView()
                 .tabItem {
                     Image(systemName: "shield.fill")
-                    Text("Block")
+                    Text("Setup")
                 }
             
             SettingsView()
