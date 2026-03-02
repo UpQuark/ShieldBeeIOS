@@ -58,12 +58,15 @@ struct BlockView: View {
                         Spacer()
                         Toggle("", isOn: Binding(
                             get: { vpnManager.isConnected },
-                            set: { _ in
+                            set: { newValue in
                                 if vpnManager.connectionStatus == .invalid {
                                     // Request permission first
                                     vpnManager.requestVPNPermission()
                                     showingPermissionAlert = true
                                 } else {
+                                    var prefs = ShieldBeeStore.shared.preferences
+                                    prefs.masterBlockingEnabled = newValue
+                                    ShieldBeeStore.shared.updatePreferences(prefs)
                                     vpnManager.toggleVPN()
                                 }
                             }
