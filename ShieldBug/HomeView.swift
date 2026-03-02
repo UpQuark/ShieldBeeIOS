@@ -64,16 +64,14 @@ struct HomeView: View {
             .navigationTitle("Block")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        newURL = ""
-                        showingAddURL = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                }
-                if !store.blockedSites.isEmpty {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        EditButton()
+                    HStack {
+                        if !store.blockedSites.isEmpty { EditButton() }
+                        Button {
+                            newURL = ""
+                            showingAddURL = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
             }

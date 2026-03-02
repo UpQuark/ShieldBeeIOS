@@ -8,25 +8,34 @@
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        TabView {
-            HomeView()
-                .tabItem {
-                    Image(systemName: "slash.circle.fill")
-                    Text("Block")
-                }
+    @Environment(\.colorScheme) var colorScheme
 
-            BlockView()
-                .tabItem {
-                    Image(systemName: "shield.fill")
-                    Text("Setup")
-                }
-            
-            SettingsView()
-                .tabItem {
-                    Image(systemName: "gearshape.fill")
-                    Text("Settings")
-                }
+    var body: some View {
+        ZStack {
+            // Warm near-black background in dark mode, matching the Chrome extension palette
+            if colorScheme == .dark {
+                Color.sbDarkBg.ignoresSafeArea()
+            }
+
+            TabView {
+                HomeView()
+                    .tabItem {
+                        Image(systemName: "slash.circle.fill")
+                        Text("Block")
+                    }
+
+                BlockView()
+                    .tabItem {
+                        Image(systemName: "shield.fill")
+                        Text("Setup")
+                    }
+
+                SettingsView()
+                    .tabItem {
+                        Image(systemName: "gearshape.fill")
+                        Text("Settings")
+                    }
+            }
         }
     }
 }

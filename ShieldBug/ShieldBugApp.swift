@@ -14,6 +14,7 @@ struct ShieldBugApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .tint(.sbOrange)
                 .preferredColorScheme(colorScheme)
         }
     }
