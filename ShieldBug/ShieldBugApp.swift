@@ -10,12 +10,24 @@ import SwiftUI
 @main
 struct ShieldBugApp: App {
     @ObservedObject private var store = ShieldBeeStore.shared
+    @Environment(\.scenePhase) private var scenePhase
+
+    init() {
+        // Ensure VPNManager is alive from the start so it can observe
+        // blockListDidChange before the first tab is rendered.
+        _ = VPNManager.shared
+    }
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .tint(.sbOrange)
                 .preferredColorScheme(colorScheme)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                ScheduleManager.shared.evaluate()
+            }
         }
     }
 

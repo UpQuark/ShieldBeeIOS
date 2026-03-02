@@ -24,6 +24,12 @@ struct ContentView: View {
                         Text("Block")
                     }
 
+                ScheduleView()
+                    .tabItem {
+                        Image(systemName: "clock.fill")
+                        Text("Schedule")
+                    }
+
                 BlockView()
                     .tabItem {
                         Image(systemName: "shield.fill")

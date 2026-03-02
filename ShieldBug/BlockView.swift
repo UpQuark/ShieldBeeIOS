@@ -8,7 +8,8 @@
 import SwiftUI
 
 struct BlockView: View {
-    @StateObject private var vpnManager = VPNManager()
+    @ObservedObject private var vpnManager = VPNManager.shared
+    @ObservedObject private var store = ShieldBeeStore.shared
     @State private var showingPermissionAlert = false
     @Environment(\.colorScheme) var colorScheme
 
@@ -42,6 +43,14 @@ struct BlockView: View {
                     Text("VPN: \(vpnManager.connectionStatus.description)")
                         .font(.caption)
                         .foregroundColor(.secondary)
+
+                    if let nextText = ScheduleManager.shared.nextEventText(schedules: store.schedules),
+                       !store.schedules.filter({ $0.isEnabled }).isEmpty {
+                        Text(nextText)
+                            .font(.caption)
+                            .foregroundColor(.sbOrange)
+                            .padding(.top, 2)
+                    }
                 }
                 .padding()
                 .background(
@@ -64,9 +73,9 @@ struct BlockView: View {
                                     vpnManager.requestVPNPermission()
                                     showingPermissionAlert = true
                                 } else {
-                                    var prefs = ShieldBeeStore.shared.preferences
+                                    var prefs = store.preferences
                                     prefs.masterBlockingEnabled = newValue
-                                    ShieldBeeStore.shared.updatePreferences(prefs)
+                                    store.updatePreferences(prefs)
                                     vpnManager.toggleVPN()
                                 }
                             }

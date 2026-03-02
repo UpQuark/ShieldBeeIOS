@@ -9,17 +9,19 @@ import Foundation
 import NetworkExtension
 
 class VPNManager: ObservableObject {
+    static let shared = VPNManager()
+
     @Published var isConnected = false
     @Published var connectionStatus: NEVPNStatus = .invalid
     @Published var errorMessage: String? = nil
 
     private var vpnManager: NETunnelProviderManager?
-    
+
     static var blockedURLs: [String] {
         UserDefaults.standard.stringArray(forKey: "blockedURLs") ?? []
     }
-    
-    init() {
+
+    private init() {
         setupVPN()
         observeVPNStatus()
     }
@@ -97,14 +99,13 @@ class VPNManager: ObservableObject {
     
     func toggleVPN() {
         guard let vpnManager = vpnManager else { return }
-        
-        if vpnManager.connection.status == .connected {
-            disconnectVPN()
-        } else {
-            connectVPN()
-        }
+        if vpnManager.connection.status == .connected { disconnect() }
+        else { connect() }
     }
-    
+
+    func connect() { connectVPN() }
+    func disconnect() { disconnectVPN() }
+
     private func connectVPN() {
         guard let vpnManager = vpnManager else { return }
         

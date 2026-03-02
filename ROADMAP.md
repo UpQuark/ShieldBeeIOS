@@ -38,12 +38,13 @@ Parity target: Chrome extension feature set, adapted for iOS.
 ## Phase 3 — Scheduling
 
 ### Block Schedule
-- [ ] New "Schedule" tab or section in Settings
-- [ ] Create time intervals with start/end time pickers
-- [ ] Day-of-week selector per interval (multi-select)
-- [ ] Enable/disable individual intervals without deleting
-- [ ] Background task or `BGTaskScheduler` to auto-connect/disconnect VPN at scheduled times
-- [ ] Show next scheduled event in Setup tab
+- [x] New "Schedule" tab
+- [x] Create time intervals with start/end time pickers
+- [x] Day-of-week selector per interval (multi-select)
+- [x] Enable/disable individual intervals without deleting
+- [x] `ScheduleManager` evaluates on app foreground and adjusts VPN automatically
+- [x] Show next scheduled event in Setup tab
+- [ ] `BGTaskScheduler` background evaluation (needs `BGTaskSchedulerPermittedIdentifiers` in Info.plist)
 
 ---
 
