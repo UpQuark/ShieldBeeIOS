@@ -43,6 +43,7 @@ enum BlockCategoryType: String, CaseIterable, Codable, Identifiable {
 struct BlockCategory: Identifiable, Codable {
     var id: BlockCategoryType
     var isEnabled: Bool = false
+    var customDomains: [String] = []
 }
 
 struct BlockSchedule: Identifiable, Codable {
@@ -133,6 +134,32 @@ class ShieldBeeStore: ObservableObject {
         categories.first(where: { $0.id == type })?.isEnabled ?? false
     }
 
+    func addCustomDomain(_ domain: String, to type: BlockCategoryType) {
+        // TODO: POST /categories/:type/domains
+        if let i = categories.firstIndex(where: { $0.id == type }) {
+            guard !categories[i].customDomains.contains(domain) else { return }
+            categories[i].customDomains.append(domain)
+        } else {
+            var cat = BlockCategory(id: type, isEnabled: false)
+            cat.customDomains = [domain]
+            categories.append(cat)
+        }
+        persist()
+        syncToVPN()
+    }
+
+    func removeCustomDomain(_ domain: String, from type: BlockCategoryType) {
+        // TODO: DELETE /categories/:type/domains/:domain
+        guard let i = categories.firstIndex(where: { $0.id == type }) else { return }
+        categories[i].customDomains.removeAll { $0 == domain }
+        persist()
+        syncToVPN()
+    }
+
+    func customDomains(for type: BlockCategoryType) -> [String] {
+        categories.first(where: { $0.id == type })?.customDomains ?? []
+    }
+
     // MARK: - Schedules
 
     func addSchedule(_ schedule: BlockSchedule) {
@@ -187,7 +214,7 @@ class ShieldBeeStore: ObservableObject {
 
         let categoryDomains = categories
             .filter { $0.isEnabled }
-            .flatMap { CategoryDomains.domains(for: $0.id) }
+            .flatMap { CategoryDomains.domains(for: $0.id) + $0.customDomains }
 
         return Array(Set(siteDomains + categoryDomains))
     }
@@ -259,21 +286,48 @@ enum CategoryDomains {
         // TODO: load from bundled JSON or API
         switch category {
         case .socialMedia:
-            return ["facebook.com", "twitter.com", "instagram.com", "tiktok.com",
-                    "reddit.com", "snapchat.com", "pinterest.com", "linkedin.com",
-                    "tumblr.com", "discord.com"]
+            return [
+                "facebook.com", "twitter.com", "x.com", "instagram.com", "tiktok.com",
+                "reddit.com", "snapchat.com", "pinterest.com", "linkedin.com", "tumblr.com",
+                "discord.com", "threads.net", "bsky.app", "mastodon.social", "vk.com",
+                "telegram.org", "t.me", "whatsapp.com", "weibo.com", "qq.com",
+                "bereal.com", "clubhouse.com", "meetup.com", "nextdoor.com", "quora.com",
+            ]
         case .news:
-            return ["bbc.com", "cnn.com", "theguardian.com", "nytimes.com",
-                    "dailymail.co.uk", "foxnews.com", "huffpost.com"]
+            return [
+                "bbc.com", "cnn.com", "theguardian.com", "nytimes.com", "dailymail.co.uk",
+                "foxnews.com", "huffpost.com", "washingtonpost.com", "wsj.com", "bloomberg.com",
+                "reuters.com", "apnews.com", "nbcnews.com", "cbsnews.com", "msnbc.com",
+                "politico.com", "theatlantic.com", "vox.com", "npr.org", "time.com",
+                "usatoday.com", "newsweek.com", "nypost.com", "independent.co.uk", "techcrunch.com",
+                "theverge.com", "wired.com", "arstechnica.com", "businessinsider.com", "vice.com",
+                "buzzfeed.com", "telegraph.co.uk", "sky.com", "abcnews.go.com", "slate.com",
+            ]
         case .shopping:
-            return ["amazon.com", "ebay.com", "etsy.com", "walmart.com",
-                    "target.com", "asos.com", "aliexpress.com"]
+            return [
+                "amazon.com", "ebay.com", "etsy.com", "walmart.com", "target.com",
+                "asos.com", "aliexpress.com", "bestbuy.com", "costco.com", "newegg.com",
+                "wish.com", "shein.com", "temu.com", "hm.com", "zara.com",
+                "nordstrom.com", "macys.com", "wayfair.com", "chewy.com", "poshmark.com",
+                "depop.com", "vinted.com", "mercari.com", "craigslist.org", "homedepot.com",
+                "lowes.com", "shopee.com", "lazada.com", "overstock.com", "gap.com",
+            ]
         case .videoStreaming:
-            return ["youtube.com", "netflix.com", "hulu.com", "disneyplus.com",
-                    "twitch.tv", "vimeo.com", "dailymotion.com"]
+            return [
+                "youtube.com", "netflix.com", "hulu.com", "disneyplus.com", "twitch.tv",
+                "vimeo.com", "dailymotion.com", "max.com", "hbomax.com", "peacocktv.com",
+                "paramountplus.com", "primevideo.com", "crunchyroll.com", "tubi.com", "pluto.tv",
+                "mubi.com", "discoveryplus.com", "espn.com", "fubo.tv", "kick.com",
+                "rumble.com", "bilibili.com", "sling.com", "curiositystream.com", "plex.tv",
+            ]
         case .gambling:
-            return ["bet365.com", "draftkings.com", "fanduel.com", "pokerstars.com",
-                    "betway.com", "888casino.com"]
+            return [
+                "bet365.com", "draftkings.com", "fanduel.com", "pokerstars.com", "betway.com",
+                "888casino.com", "williamhill.com", "ladbrokes.com", "betfair.com", "paddypower.com",
+                "betmgm.com", "caesarscasino.com", "unibet.com", "bwin.com", "bovada.lv",
+                "mybookie.ag", "pointsbet.com", "hardrock.bet", "betonline.ag", "sportsbetting.ag",
+                "1xbet.com", "leovegas.com", "casumo.com", "betsson.com", "22bet.com",
+            ]
         }
     }
 }

@@ -8,33 +8,26 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @State private var notificationsEnabled = true
-    @State private var autoProtection = false
-    @State private var darkMode = false
-    
+    @ObservedObject private var store = ShieldBeeStore.shared
+
     var body: some View {
         NavigationView {
             Form {
-                Section("General") {
-                    HStack {
-                        Image(systemName: "bell.fill")
-                            .foregroundColor(.orange)
-                        Toggle("Notifications", isOn: $notificationsEnabled)
-                    }
-                    
-                    HStack {
-                        Image(systemName: "shield.checkered")
-                            .foregroundColor(.green)
-                        Toggle("Auto Protection", isOn: $autoProtection)
-                    }
-                    
-                    HStack {
-                        Image(systemName: "moon.fill")
-                            .foregroundColor(.purple)
-                        Toggle("Dark Mode", isOn: $darkMode)
+                Section("Appearance") {
+                    Picker("Theme", selection: Binding(
+                        get: { store.preferences.theme },
+                        set: { newTheme in
+                            var prefs = store.preferences
+                            prefs.theme = newTheme
+                            store.updatePreferences(prefs)
+                        }
+                    )) {
+                        Label("Light",  systemImage: "sun.max").tag(AppTheme.light)
+                        Label("Dark",   systemImage: "moon").tag(AppTheme.dark)
+                        Label("System", systemImage: "circle.lefthalf.filled").tag(AppTheme.system)
                     }
                 }
-                
+
                 Section("About") {
                     HStack {
                         Image(systemName: "info.circle.fill")
@@ -44,7 +37,7 @@ struct SettingsView: View {
                         Text("1.0.0")
                             .foregroundColor(.secondary)
                     }
-                    
+
                     HStack {
                         Image(systemName: "questionmark.circle.fill")
                             .foregroundColor(.gray)
@@ -55,7 +48,7 @@ struct SettingsView: View {
                             .font(.caption)
                     }
                 }
-                
+
                 Section("Privacy") {
                     HStack {
                         Image(systemName: "hand.raised.fill")
@@ -66,7 +59,7 @@ struct SettingsView: View {
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
-                    
+
                     HStack {
                         Image(systemName: "doc.text.fill")
                             .foregroundColor(.blue)
@@ -85,4 +78,4 @@ struct SettingsView: View {
 
 #Preview {
     SettingsView()
-} 
+}

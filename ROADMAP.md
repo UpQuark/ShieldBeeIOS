@@ -77,9 +77,9 @@ Parity target: Chrome extension feature set, adapted for iOS.
 ## Phase 6 — Extra Settings
 
 ### Theme
-- [ ] Light / Dark / System toggle in Settings
-- [ ] Applied via SwiftUI `preferredColorScheme`
-- [ ] Preference stored in `ShieldBeeStore`
+- [x] Light / Dark / System toggle in Settings
+- [x] Applied via SwiftUI `preferredColorScheme`
+- [x] Preference stored in `ShieldBeeStore`
 - [ ] Check against color scheme from existing ShieldBug chrome extension
 
 ### Keyword Blocking

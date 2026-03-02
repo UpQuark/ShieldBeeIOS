@@ -93,18 +93,6 @@ struct HomeView: View {
         store.addBlockedSite(domain: domain)
         newURL = ""
     }
-
-    /// Strips scheme and path, lowercases, and validates the input looks like a domain.
-    private func parseDomain(_ input: String) -> String? {
-        var s = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        for scheme in ["https://", "http://"] {
-            if s.hasPrefix(scheme) { s = String(s.dropFirst(scheme.count)) }
-        }
-        if let slash = s.firstIndex(of: "/") { s = String(s[s.startIndex..<slash]) }
-        if let q = s.firstIndex(of: "?") { s = String(s[s.startIndex..<q]) }
-        guard !s.isEmpty, s.contains("."), !s.contains(" ") else { return nil }
-        return s
-    }
 }
 
 // MARK: - Category Row
@@ -113,6 +101,8 @@ struct CategoryRow: View {
     let type: BlockCategoryType
     @ObservedObject private var store = ShieldBeeStore.shared
     @State private var expanded = false
+    @State private var showingAddDomain = false
+    @State private var newDomain = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -136,18 +126,72 @@ struct CategoryRow: View {
                 ))
                 .labelsHidden()
             }
+
             if expanded {
-                let domains = CategoryDomains.domains(for: type)
-                let preview = domains.prefix(5).joined(separator: ", ")
-                    + (domains.count > 5 ? "…" : "")
-                Text(preview)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                let builtIn  = CategoryDomains.domains(for: type)
+                let custom   = store.customDomains(for: type)
+
+                // Built-in domain preview
+                Text(builtIn.prefix(6).joined(separator: "  ·  "))
+                    .font(.caption2)
+                    .foregroundColor(Color(.tertiaryLabel))
                     .padding(.leading, 32)
                     .transition(.opacity)
+
+                // Custom domains with remove button
+                ForEach(custom, id: \.self) { domain in
+                    HStack(spacing: 6) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.caption2)
+                            .foregroundColor(iconColor.opacity(0.7))
+                        Text(domain)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Button {
+                            store.removeCustomDomain(domain, from: type)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(Color(.systemGray3))
+                                .font(.caption)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.leading, 32)
+                }
+
+                // Subtle add button
+                Button {
+                    newDomain = ""
+                    showingAddDomain = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle")
+                            .font(.caption2)
+                        Text("Add custom domain")
+                            .font(.caption)
+                    }
+                    .foregroundColor(.accentColor.opacity(0.8))
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 32)
+                .padding(.top, 2)
             }
         }
         .padding(.vertical, 2)
+        .alert("Add to \(type.displayName)", isPresented: $showingAddDomain) {
+            TextField("e.g. example.com", text: $newDomain)
+            Button("Add") { addDomain() }
+            Button("Cancel", role: .cancel) { newDomain = "" }
+        } message: {
+            Text("Enter a domain to add to this category")
+        }
+    }
+
+    private func addDomain() {
+        guard let domain = parseDomain(newDomain) else { return }
+        store.addCustomDomain(domain, to: type)
+        newDomain = ""
     }
 
     private var iconName: String {
@@ -169,6 +213,20 @@ struct CategoryRow: View {
         case .gambling:       return .purple
         }
     }
+}
+
+// MARK: - Shared helpers
+
+/// Strips scheme and path, lowercases, and validates the input looks like a domain.
+fileprivate func parseDomain(_ input: String) -> String? {
+    var s = input.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    for scheme in ["https://", "http://"] {
+        if s.hasPrefix(scheme) { s = String(s.dropFirst(scheme.count)) }
+    }
+    if let slash = s.firstIndex(of: "/") { s = String(s[s.startIndex..<slash]) }
+    if let q = s.firstIndex(of: "?") { s = String(s[s.startIndex..<q]) }
+    guard !s.isEmpty, s.contains("."), !s.contains(" ") else { return nil }
+    return s
 }
 
 #Preview {
