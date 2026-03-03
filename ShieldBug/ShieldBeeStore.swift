@@ -84,7 +84,8 @@ class ShieldBeeStore: ObservableObject {
     @Published var blockCount: Int                   = 0
     @Published var isLoading: Bool                   = false
 
-    private let defaults = UserDefaults.standard
+    private static let appGroupID = "group.shieldbug.ShieldBug"
+    private let defaults = UserDefaults(suiteName: ShieldBeeStore.appGroupID)!
     private let encoder  = JSONEncoder()
     private let decoder  = JSONDecoder()
 
@@ -222,7 +223,7 @@ class ShieldBeeStore: ObservableObject {
     /// Writes the active domain list to UserDefaults so the VPN extension picks it up,
     /// then notifies VPNManager to restart the tunnel if it is already running.
     private func syncToVPN() {
-        UserDefaults.standard.set(activeDomains(), forKey: "blockedURLs")
+        defaults.set(activeDomains(), forKey: "blockedURLs")
         NotificationCenter.default.post(name: .blockListDidChange, object: nil)
     }
 

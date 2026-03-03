@@ -17,8 +17,10 @@ class VPNManager: ObservableObject {
 
     private var vpnManager: NETunnelProviderManager?
 
+    private static let appGroupID = "group.shieldbug.ShieldBug"
+
     static var blockedURLs: [String] {
-        UserDefaults.standard.stringArray(forKey: "blockedURLs") ?? []
+        UserDefaults(suiteName: appGroupID)?.stringArray(forKey: "blockedURLs") ?? []
     }
 
     private init() {
@@ -70,24 +72,21 @@ class VPNManager: ObservableObject {
             self?.updateConnectionStatus()
         }
 
-        // Restart the tunnel whenever the block list changes so new rules take effect immediately.
+        // Send updated block list to the running extension (no tunnel restart needed).
         NotificationCenter.default.addObserver(
             forName: .blockListDidChange,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            self?.restartIfActive()
+            self?.sendBlockListToExtension()
         }
     }
 
-    private func restartIfActive() {
-        guard let manager = vpnManager,
-              manager.connection.status == .connected else { return }
-        disconnectVPN()
-        // Give the tunnel a moment to stop before reconnecting.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.connectVPN()
-        }
+    private func sendBlockListToExtension() {
+        guard let session = vpnManager?.connection as? NETunnelProviderSession,
+              vpnManager?.connection.status == .connected else { return }
+        guard let data = try? JSONEncoder().encode(VPNManager.blockedURLs) else { return }
+        try? session.sendProviderMessage(data) { _ in }
     }
     
     private func updateConnectionStatus() {

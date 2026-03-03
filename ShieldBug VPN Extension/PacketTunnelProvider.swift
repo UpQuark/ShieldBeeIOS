@@ -2,45 +2,57 @@
 //  PacketTunnelProvider.swift
 //  ShieldBug VPN Extension
 //
-//  Architecture: Split-tunnel + IP-level blocking
+//  Architecture: DNS-intercept only (split tunnel, DNS traffic only)
 //
 //  On startup:
-//    1. Resolve blocked domains to real IPs (extension has direct network access)
-//    2. Route ONLY those IPs + a virtual DNS address through the tunnel
-//    3. All other traffic bypasses the tunnel entirely
+//    1. Load the blocked domain list from providerConfiguration
+//    2. Route ONLY the virtual DNS address through the tunnel
+//    3. All other IP traffic bypasses the tunnel entirely (no performance impact)
 //
 //  In the tunnel:
-//    - TCP SYN to a blocked IP  → TCP RST  (instant connection failure, ignores DNS cache)
-//    - DNS query for blocked domain → NXDOMAIN
-//    - DNS query for allowed domain → forwarded to 8.8.8.8 and relayed back
-//    - UDP to blocked IPs → silently dropped
+//    - DNS query for a blocked domain (exact or any subdomain) → NXDOMAIN
+//    - DNS query for an allowed domain → forwarded to 8.8.8.8 and relayed back
+//
+//  This approach is fully hostname-based and generic. Blocking "x.com" automatically
+//  covers api.x.com, pbs.x.com, every subdomain — without enumerating IPs or CDN ranges.
+//
+//  Limitation: connections that were already established before the VPN connects
+//  (or that survive a VPN restart via QUIC connection migration) are not affected.
+//  Force-quitting an app after enabling blocking gives immediate effect.
 
 import NetworkExtension
 import Network
-import Darwin
 
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private var blockedDomains: Set<String> = []
-    private var blockedIPs:     Set<String> = []
 
     private let tunnelAddress = "192.0.2.1"
     private let virtualDNS    = "192.0.2.2"
     private let upstreamDNS   = "8.8.8.8"
 
+    /// Well-known DoH/DoT providers. NXDOMAIN these so browsers fall back to system DNS.
+    private let dohProviders: Set<String> = [
+        "dns.google", "dns.cloudflare.com", "cloudflare-dns.com",
+        "one.one.one.one", "doh.opendns.com", "dns.quad9.net",
+        "doh.cleanbrowsing.org", "dns.nextdns.io", "dns.adguard-dns.com",
+        "dns.controld.com", "freedns.controld.com",
+    ]
+
+    private static let appGroupID = "group.shieldbug.ShieldBug"
+
     // MARK: - Lifecycle
 
     override func startTunnel(options: [String: NSObject]?, completionHandler: @escaping (Error?) -> Void) {
-        if let cfg = (protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration,
-           let urls = cfg["blockedURLs"] as? [String] {
+        // Prefer App Group UserDefaults (always up-to-date), fall back to providerConfiguration.
+        if let shared = UserDefaults(suiteName: Self.appGroupID),
+           let urls = shared.stringArray(forKey: "blockedURLs"), !urls.isEmpty {
+            blockedDomains = Set(urls.map { $0.lowercased() })
+        } else if let cfg = (protocolConfiguration as? NETunnelProviderProtocol)?.providerConfiguration,
+                  let urls = cfg["blockedURLs"] as? [String] {
             blockedDomains = Set(urls.map { $0.lowercased() })
         }
-
-        resolveBlockedDomains { [weak self] ips in
-            guard let self = self else { return }
-            self.blockedIPs = ips
-            self.configureTunnel(completionHandler: completionHandler)
-        }
+        configureTunnel(completionHandler: completionHandler)
     }
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
@@ -48,6 +60,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     override func handleAppMessage(_ messageData: Data, completionHandler: ((Data?) -> Void)?) {
+        if let domains = try? JSONDecoder().decode([String].self, from: messageData) {
+            blockedDomains = Set(domains.map { $0.lowercased() })
+        }
         completionHandler?(nil)
     }
 
@@ -55,14 +70,19 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private func configureTunnel(completionHandler: @escaping (Error?) -> Void) {
         let settings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
+
+        // Override system DNS with our virtual resolver so every DNS query
+        // comes through the tunnel's packet flow.
         settings.dnsSettings = NEDNSSettings(servers: [virtualDNS])
+        settings.dnsSettings?.matchDomains = [""]  // empty string = handle ALL domains
 
-        // Only route blocked IPs + virtual DNS through the tunnel
-        var routes = blockedIPs.map { NEIPv4Route(destinationAddress: $0, subnetMask: "255.255.255.255") }
-        routes.append(NEIPv4Route(destinationAddress: virtualDNS, subnetMask: "255.255.255.255"))
-
+        // Only route the virtual DNS address through the tunnel.
+        // All other traffic (HTTP, HTTPS, etc.) bypasses the tunnel and goes
+        // directly over the native network — no proxying, no latency impact.
         let ipv4 = NEIPv4Settings(addresses: [tunnelAddress], subnetMasks: ["255.255.255.252"])
-        ipv4.includedRoutes = routes
+        ipv4.includedRoutes = [
+            NEIPv4Route(destinationAddress: virtualDNS, subnetMask: "255.255.255.255")
+        ]
         settings.ipv4Settings = ipv4
 
         setTunnelNetworkSettings(settings) { [weak self] error in
@@ -72,61 +92,12 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
     }
 
-    // MARK: - IP resolution
+    // MARK: - Domain check
 
-    private func resolveBlockedDomains(completion: @escaping (Set<String>) -> Void) {
-        guard !blockedDomains.isEmpty else { completion([]); return }
-
-        var allIPs = Set<String>()
-        let group = DispatchGroup()
-        let lock = NSLock()
-
-        // Resolve base domain + www. variant
-        var toResolve = Set<String>()
-        for domain in blockedDomains {
-            toResolve.insert(domain)
-            if !domain.hasPrefix("www.") { toResolve.insert("www.\(domain)") }
-        }
-
-        for domain in toResolve {
-            group.enter()
-            resolveHostname(domain) { ips in
-                lock.lock(); allIPs.formUnion(ips); lock.unlock()
-                group.leave()
-            }
-        }
-
-        group.notify(queue: .global()) { completion(allIPs) }
-    }
-
-    private func resolveHostname(_ hostname: String, completion: @escaping ([String]) -> Void) {
-        DispatchQueue.global().async {
-            var hints = addrinfo()
-            hints.ai_family   = AF_INET
-            hints.ai_socktype = SOCK_STREAM
-            var result: UnsafeMutablePointer<addrinfo>?
-
-            guard getaddrinfo(hostname, nil, &hints, &result) == 0, let head = result else {
-                completion([]); return
-            }
-            defer { freeaddrinfo(head) }
-
-            var addresses: [String] = []
-            var cur: UnsafeMutablePointer<addrinfo>? = head
-            while let ptr = cur {
-                if ptr.pointee.ai_family == AF_INET {
-                    var buf = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
-                    ptr.pointee.ai_addr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { sin in
-                        var addr = sin.pointee.sin_addr
-                        inet_ntop(AF_INET, &addr, &buf, socklen_t(INET_ADDRSTRLEN))
-                    }
-                    let ip = String(cString: buf)
-                    if !ip.isEmpty && !addresses.contains(ip) { addresses.append(ip) }
-                }
-                cur = ptr.pointee.ai_next
-            }
-            completion(addresses)
-        }
+    private func isDomainBlocked(_ domain: String) -> Bool {
+        let lower = domain.lowercased()
+        if dohProviders.contains(where: { lower == $0 || lower.hasSuffix(".\($0)") }) { return true }
+        return blockedDomains.contains { lower == $0 || lower.hasSuffix(".\($0)") }
     }
 
     // MARK: - Packet loop
@@ -149,78 +120,14 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         let proto = b[9]
         let dstIP = "\(b[16]).\(b[17]).\(b[18]).\(b[19])"
 
-        if proto == 17 && dstIP == virtualDNS {
-            // UDP to virtual DNS → DNS interception
-            guard let info = parseDNSQuery(b, ihl: ihl) else { return }
-            isDomainBlocked(info.domain)
-                ? replyNXDOMAIN(info: info, version: version)
-                : forwardToUpstream(info: info, version: version)
+        // Only handle UDP packets destined for the virtual DNS address.
+        guard proto == 17, dstIP == virtualDNS else { return }
 
-        } else if proto == 6 {
-            // TCP to a blocked IP → RST
-            sendTCPReset(b, ihl: ihl, version: version)
-        }
-        // UDP to blocked IPs: silently dropped (not written back)
-    }
+        guard let info = parseDNSQuery(b, ihl: ihl) else { return }
 
-    // MARK: - Domain check
-
-    private func isDomainBlocked(_ domain: String) -> Bool {
-        let lower = domain.lowercased()
-        return blockedDomains.contains { lower == $0 || lower.hasSuffix(".\($0)") }
-    }
-
-    // MARK: - TCP RST
-
-    private func sendTCPReset(_ b: [UInt8], ihl: Int, version: NSNumber) {
-        let off = ihl
-        guard b.count >= off + 20 else { return }
-        let flags = b[off + 13]
-        // Only respond to SYN (not SYN+ACK, not already a RST)
-        guard (flags & 0x02) != 0 && (flags & 0x14) == 0 else { return }
-
-        let srcIPStr = "\(b[12]).\(b[13]).\(b[14]).\(b[15])"
-        let dstIPStr = "\(b[16]).\(b[17]).\(b[18]).\(b[19])"
-        let srcPort  = (UInt16(b[off])     << 8) | UInt16(b[off + 1])
-        let dstPort  = (UInt16(b[off + 2]) << 8) | UInt16(b[off + 3])
-        let synSeq   = (UInt32(b[off + 4]) << 24) | (UInt32(b[off + 5]) << 16)
-                     | (UInt32(b[off + 6]) << 8)  |  UInt32(b[off + 7])
-        let ackNum   = synSeq + 1
-
-        var tcp = Data(count: 20)
-        tcp[0]  = UInt8(dstPort >> 8);    tcp[1]  = UInt8(dstPort & 0xFF)   // src port
-        tcp[2]  = UInt8(srcPort >> 8);    tcp[3]  = UInt8(srcPort & 0xFF)   // dst port
-        tcp[4]  = 0; tcp[5] = 0; tcp[6] = 0; tcp[7] = 0                    // seq = 0
-        tcp[8]  = UInt8(ackNum >> 24);    tcp[9]  = UInt8((ackNum >> 16) & 0xFF)
-        tcp[10] = UInt8((ackNum >> 8) & 0xFF); tcp[11] = UInt8(ackNum & 0xFF)
-        tcp[12] = 0x50                          // data offset = 5 (20 bytes)
-        tcp[13] = 0x14                          // RST | ACK
-        tcp[14] = 0; tcp[15] = 0               // window = 0
-        tcp[16] = 0; tcp[17] = 0               // checksum placeholder
-        tcp[18] = 0; tcp[19] = 0               // urgent pointer
-
-        let ck = tcpChecksum(srcIP: dstIPStr, dstIP: srcIPStr, tcp: tcp)
-        tcp[16] = UInt8(ck >> 8); tcp[17] = UInt8(ck & 0xFF)
-
-        let pkt = buildIP(payload: tcp, srcIP: dstIPStr, dstIP: srcIPStr, proto: 6)
-        packetFlow.writePackets([pkt], withProtocols: [version])
-    }
-
-    private func tcpChecksum(srcIP: String, dstIP: String, tcp: Data) -> UInt16 {
-        let src = srcIP.split(separator: ".").compactMap { UInt8($0) }
-        let dst = dstIP.split(separator: ".").compactMap { UInt8($0) }
-        guard src.count == 4, dst.count == 4 else { return 0 }
-
-        var pseudo = Data()
-        pseudo.append(contentsOf: src)
-        pseudo.append(contentsOf: dst)
-        pseudo.append(0x00); pseudo.append(0x06)
-        let len = UInt16(tcp.count)
-        pseudo.append(UInt8(len >> 8)); pseudo.append(UInt8(len & 0xFF))
-        pseudo.append(contentsOf: tcp)
-        if pseudo.count % 2 != 0 { pseudo.append(0x00) }
-
-        return checksum([UInt8](pseudo))
+        isDomainBlocked(info.domain)
+            ? replyNXDOMAIN(info: info, version: version)
+            : forwardToUpstream(info: info, version: version)
     }
 
     // MARK: - DNS handling
