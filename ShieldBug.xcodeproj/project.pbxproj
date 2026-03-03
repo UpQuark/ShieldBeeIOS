@@ -58,6 +58,13 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		84F02F5B2DE79458003F33C7 /* Exceptions for "ShieldBug" folder in "ShieldBug" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 84F02F052DE79456003F33C7 /* ShieldBug */;
+		};
 		84F02F4E2DE833BE003F33C7 /* Exceptions for "ShieldBug VPN Extension" folder in "ShieldBug VPN Extension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -70,6 +77,9 @@
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		84F02F082DE79456003F33C7 /* ShieldBug */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				84F02F5B2DE79458003F33C7 /* Exceptions for "ShieldBug" folder in "ShieldBug" target */,
+			);
 			path = ShieldBug;
 			sourceTree = "<group>";
 		};
@@ -513,6 +523,7 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = TNQP6G94U5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ShieldBug/Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -546,6 +557,7 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = TNQP6G94U5;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ShieldBug/Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

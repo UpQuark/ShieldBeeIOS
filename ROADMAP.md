@@ -44,7 +44,7 @@ Parity target: Chrome extension feature set, adapted for iOS.
 - [x] Enable/disable individual intervals without deleting
 - [x] `ScheduleManager` evaluates on app foreground and adjusts VPN automatically
 - [x] Show next scheduled event in Setup tab
-- [ ] `BGTaskScheduler` background evaluation (needs `BGTaskSchedulerPermittedIdentifiers` in Info.plist)
+- [x] `BGTaskScheduler` background evaluation (needs `BGTaskSchedulerPermittedIdentifiers` in Info.plist)
 
 ---
 
