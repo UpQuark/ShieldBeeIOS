@@ -19,9 +19,8 @@ struct SettingsView: View {
     var body: some View {
         NavigationView {
             Form {
-                // MARK: Security
-                Section("Security") {
-                    // Deep Breath
+                // MARK: Deep Breath
+                Section {
                     Toggle(isOn: Binding(
                         get: { store.preferences.deepBreathEnabled },
                         set: { setBreath(enabled: $0) }
@@ -38,8 +37,14 @@ struct SettingsView: View {
                                   systemImage: "timer")
                         }
                     }
+                } header: {
+                    Text("Deep Breath")
+                } footer: {
+                    Text("Shows a countdown every time you open the app. You can't change any settings until the timer runs out — giving you a moment to reconsider before disabling your blocks.")
+                }
 
-                    // PIN
+                // MARK: PIN Protection
+                Section {
                     if hasPIN {
                         Button { showPINChange = true } label: {
                             Label("Change PIN", systemImage: "key.fill")
@@ -52,6 +57,12 @@ struct SettingsView: View {
                             Label("Set PIN Protection", systemImage: "lock.fill")
                         }
                     }
+                } header: {
+                    Text("PIN Protection")
+                } footer: {
+                    Text(hasPIN
+                         ? "A PIN is required each time you open the app. Face ID or Touch ID can be used instead."
+                         : "Require a PIN when opening the app. Prevents impulsive changes even if someone else has your phone.")
                 }
 
                 // MARK: Appearance

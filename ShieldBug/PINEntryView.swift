@@ -2,7 +2,7 @@
 //  PINEntryView.swift
 //  ShieldBug
 //
-//  4-digit PIN gate with an internal state machine:
+//  PIN gate with an internal state machine (unlimited length):
 //    .verify      → check against Keychain
 //    .setNew      → enter a new PIN
 //    .confirmNew  → re-enter to confirm, then save
@@ -84,15 +84,24 @@ struct PINEntryView: View {
                 }
                 .padding(.bottom, 44)
 
-                // 4 dot indicators
-                HStack(spacing: 20) {
-                    ForEach(0..<4, id: \.self) { i in
-                        Circle()
-                            .fill(i < entered.count ? Color.sbOrange : Color.white.opacity(0.22))
-                            .frame(width: 14, height: 14)
-                            .animation(.spring(response: 0.2), value: entered.count)
+                // Dot indicators — up to 12 shown, then a count
+                Group {
+                    if entered.count <= 12 {
+                        HStack(spacing: 10) {
+                            ForEach(0..<max(entered.count, 1), id: \.self) { i in
+                                Circle()
+                                    .fill(i < entered.count ? Color.sbOrange : Color.white.opacity(0.22))
+                                    .frame(width: 12, height: 12)
+                                    .animation(.spring(response: 0.2), value: entered.count)
+                            }
+                        }
+                    } else {
+                        Text("\(entered.count) digits entered")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(Color.sbOrange)
                     }
                 }
+                .frame(height: 20)
                 .padding(.bottom, 52)
 
                 // Numpad
@@ -105,10 +114,14 @@ struct PINEntryView: View {
                         }
                     }
                     HStack(spacing: 20) {
-                        // Biometric (only on verify)
-                        PINButton(systemImage: biometricIcon) { tryBiometric() }
-                            .opacity(phase == .verify ? 1 : 0)
-                            .disabled(phase != .verify)
+                        // Biometric when verify + nothing typed; confirm (✓) otherwise
+                        if phase == .verify && entered.isEmpty {
+                            PINButton(systemImage: biometricIcon) { tryBiometric() }
+                        } else {
+                            PINButton(systemImage: "checkmark") { submit() }
+                                .opacity(entered.isEmpty ? 0.3 : 1)
+                                .disabled(entered.isEmpty)
+                        }
                         PINButton(label: "0") { append("0") }
                         PINButton(systemImage: "delete.left") { backspace() }
                     }
@@ -154,8 +167,8 @@ struct PINEntryView: View {
 
     private var subtitle: String {
         switch phase {
-        case .verify:     return "Enter your 4-digit PIN"
-        case .setNew:     return "Choose a 4-digit PIN"
+        case .verify:     return "Enter your PIN"
+        case .setNew:     return "Choose a PIN"
         case .confirmNew: return "Re-enter your new PIN"
         }
     }
@@ -169,10 +182,8 @@ struct PINEntryView: View {
     // MARK: - Input
 
     private func append(_ digit: String) {
-        guard entered.count < 4 else { return }
         entered += digit
         errorMessage = nil
-        if entered.count == 4 { submit() }
     }
 
     private func backspace() {
