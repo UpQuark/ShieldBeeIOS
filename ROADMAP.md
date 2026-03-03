@@ -51,16 +51,16 @@ Parity target: Chrome extension feature set, adapted for iOS.
 ## Phase 4 — Commitment Features
 
 ### Deep Breath (anti-impulsive unblock)
-- [ ] Configurable countdown (seconds) shown before settings can be changed
-- [ ] Triggers when user tries to: disable VPN, remove a site, or access settings
-- [ ] Countdown UI overlay with cancel disabled until timer completes
-- [ ] Duration configurable in Settings (0 = disabled)
+- [x] Configurable countdown (seconds) shown before settings can be changed
+- [x] Triggers on app foreground — gates the whole app until timer completes
+- [x] Countdown UI overlay with cancel disabled until timer completes
+- [x] Duration configurable in Settings (5–60s, step 5)
 
 ### Password Protection
-- [ ] Optional PIN or password to access Settings
-- [ ] Stored as SHA-256 hash in Keychain (not UserDefaults)
-- [ ] Change password flow requires current password
-- [ ] Recovery option TBD
+- [x] Optional 4-digit PIN to access the app
+- [x] Stored as SHA-256 hash in Keychain (not UserDefaults)
+- [x] Change PIN flow requires current PIN
+- [x] Recovery: deemphasised "Forgot PIN?" clears PIN and forces immediate reset
 
 ---
 

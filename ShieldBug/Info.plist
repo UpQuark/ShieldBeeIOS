@@ -10,5 +10,7 @@
     <array>
         <string>fetch</string>
     </array>
+    <key>NSFaceIDUsageDescription</key>
+    <string>Use Face ID to unlock ShieldBug without entering your PIN.</string>
 </dict>
 </plist>
