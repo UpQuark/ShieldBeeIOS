@@ -81,18 +81,12 @@ Parity target: Chrome extension feature set, adapted for iOS.
 - [x] Light / Dark / System toggle in Settings
 - [x] Applied via SwiftUI `preferredColorScheme`
 - [x] Preference stored in `ShieldBeeStore`
-- [ ] Check against color scheme from existing ShieldBug chrome extension
 
 ### Keyword Blocking
 - [ ] Block any domain whose URL contains a keyword
 - [ ] Keyword list managed in Settings
 - [ ] VPN extension checks hostname against keyword list at DNS intercept time
 - [ ] Disabled by default, toggled in Extra Settings
-
-### Deterrent (stretch)
-- [ ] When a blocked site is accessed, show a full-screen deterrent before the RST completes
-- [ ] Requires a local HTTP server or custom scheme — complexity TBD
-- [ ] May not be feasible at the iOS VPN level (extension has no UI)
 
 ---
 
