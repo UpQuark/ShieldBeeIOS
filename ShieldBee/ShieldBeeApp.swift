@@ -1,6 +1,6 @@
 //
-//  ShieldBugApp.swift
-//  ShieldBug
+//  ShieldBeeApp.swift
+//  ShieldBee
 //
 //  Created by Sam Ennis on 5/28/25.
 //
@@ -9,7 +9,7 @@ import SwiftUI
 import BackgroundTasks
 
 @main
-struct ShieldBugApp: App {
+struct ShieldBeeApp: App {
     @ObservedObject private var store = ShieldBeeStore.shared
     @Environment(\.scenePhase) private var scenePhase
 
@@ -19,7 +19,7 @@ struct ShieldBugApp: App {
     /// Guards are skipped if the app re-foregrounds within 60 seconds (brief app switch).
     @State private var lastUnlockedAt: Date? = nil
 
-    private static let bgTaskID = "shieldbug.ShieldBug.scheduleEvaluation"
+    private static let bgTaskID = "shieldbee.ShieldBee.scheduleEvaluation"
 
     init() {
         _ = VPNManager.shared

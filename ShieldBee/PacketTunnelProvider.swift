@@ -1,6 +1,6 @@
 //
 //  PacketTunnelProvider.swift
-//  ShieldBug VPN Extension
+//  ShieldBee VPN Extension
 //
 //  Created by Sam Ennis on 5/28/25.
 //

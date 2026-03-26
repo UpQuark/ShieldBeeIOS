@@ -1,6 +1,6 @@
 //
 //  KeychainManager.swift
-//  ShieldBug
+//  ShieldBee
 //
 
 import CryptoKit
@@ -8,7 +8,7 @@ import Foundation
 import Security
 
 enum KeychainManager {
-    private static let service = "shieldbug.ShieldBug"
+    private static let service = "shieldbee.ShieldBee"
     private static let pinAccount = "pin_hash"
 
     static var hasPin: Bool { retrieve(account: pinAccount) != nil }

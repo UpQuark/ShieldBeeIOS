@@ -1,6 +1,6 @@
 //
 //  VPNManager.swift
-//  ShieldBug
+//  ShieldBee
 //
 //  Created by Sam Ennis on 5/28/25.
 //
@@ -17,7 +17,7 @@ class VPNManager: ObservableObject {
 
     private var vpnManager: NETunnelProviderManager?
 
-    private static let appGroupID = "group.shieldbug.ShieldBug"
+    private static let appGroupID = "group.shieldbee.ShieldBee"
 
     static var blockedURLs: [String] {
         UserDefaults(suiteName: appGroupID)?.stringArray(forKey: "blockedURLs") ?? []
@@ -43,9 +43,9 @@ class VPNManager: ObservableObject {
             } else {
                 // First launch — create config and trigger permission dialog
                 let manager = NETunnelProviderManager()
-                manager.localizedDescription = "ShieldBug VPN"
+                manager.localizedDescription = "ShieldBee VPN"
                 let proto = NETunnelProviderProtocol()
-                proto.providerBundleIdentifier = "shieldbug.ShieldBug.ShieldBug-VPN-Extension"
+                proto.providerBundleIdentifier = "shieldbee.ShieldBee.ShieldBee-VPN-Extension"
                 proto.serverAddress = "127.0.0.1"
                 manager.protocolConfiguration = proto
                 manager.isEnabled = true
@@ -110,7 +110,7 @@ class VPNManager: ObservableObject {
         
         // Configure the VPN
         let protocolConfiguration = NETunnelProviderProtocol()
-        protocolConfiguration.providerBundleIdentifier = "shieldbug.ShieldBug.ShieldBug-VPN-Extension"
+        protocolConfiguration.providerBundleIdentifier = "shieldbee.ShieldBee.ShieldBee-VPN-Extension"
         protocolConfiguration.serverAddress = "127.0.0.1" // Local VPN
         
         // Pass blocked URLs to the VPN extension
@@ -119,7 +119,7 @@ class VPNManager: ObservableObject {
         ]
         
         vpnManager.protocolConfiguration = protocolConfiguration
-        vpnManager.localizedDescription = "ShieldBug VPN"
+        vpnManager.localizedDescription = "ShieldBee VPN"
         vpnManager.isEnabled = true
         
         // Save the configuration

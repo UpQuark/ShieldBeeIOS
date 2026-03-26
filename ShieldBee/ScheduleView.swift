@@ -1,6 +1,6 @@
 //
 //  ScheduleView.swift
-//  ShieldBug
+//  ShieldBee
 //
 //  Manage time-based blocking schedules.
 //

@@ -1,8 +1,8 @@
 //
-//  ShieldBugColors.swift
-//  ShieldBug
+//  ShieldBeeColors.swift
+//  ShieldBee
 //
-//  Brand color palette derived from the ShieldBug Chrome extension MUI theme.
+//  Brand color palette derived from the ShieldBee Chrome extension MUI theme.
 //
 
 import SwiftUI
@@ -28,7 +28,7 @@ extension Color {
 struct ShieldBeeWordmark: View {
     var body: some View {
         HStack(spacing: 5) {
-            Image("ShieldBugLogo")
+            Image("ShieldBeeLogo")
                 .resizable()
                 .scaledToFit()
                 .frame(width: 22, height: 22)

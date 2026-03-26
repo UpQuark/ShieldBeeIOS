@@ -1,6 +1,6 @@
 //
 //  PINEntryView.swift
-//  ShieldBug
+//  ShieldBee
 //
 //  PIN gate with an internal state machine (unlimited length):
 //    .verify      → check against Keychain
@@ -159,7 +159,7 @@ struct PINEntryView: View {
 
     private var title: String {
         switch phase {
-        case .verify:     return mode == .gate ? "Unlock ShieldBug" : "Enter current PIN"
+        case .verify:     return mode == .gate ? "Unlock ShieldBee" : "Enter current PIN"
         case .setNew:     return "Set a PIN"
         case .confirmNew: return "Confirm PIN"
         }
@@ -231,7 +231,7 @@ struct PINEntryView: View {
         var error: NSError?
         guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else { return }
         ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics,
-                           localizedReason: "Unlock ShieldBug") { success, _ in
+                           localizedReason: "Unlock ShieldBee") { success, _ in
             if success { DispatchQueue.main.async { onComplete() } }
         }
     }

@@ -1,6 +1,6 @@
 //
 //  PacketTunnelProvider.swift
-//  ShieldBug VPN Extension
+//  ShieldBee VPN Extension
 //
 //  Architecture: DNS-intercept only (split tunnel, DNS traffic only)
 //
@@ -39,7 +39,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         "dns.controld.com", "freedns.controld.com",
     ]
 
-    private static let appGroupID = "group.shieldbug.ShieldBug"
+    private static let appGroupID = "group.shieldbee.ShieldBee"
 
     // MARK: - Lifecycle
 

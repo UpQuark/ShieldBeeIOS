@@ -1,6 +1,6 @@
 //
 //  SettingsView.swift
-//  ShieldBug
+//  ShieldBee
 //
 //  Created by Sam Ennis on 5/28/25.
 //

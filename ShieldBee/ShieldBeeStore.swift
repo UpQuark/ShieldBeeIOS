@@ -1,6 +1,6 @@
 //
 //  ShieldBeeStore.swift
-//  ShieldBug
+//  ShieldBee
 //
 //  Central data store for all app state.
 //  Currently backed by UserDefaults with JSON encoding.
@@ -84,7 +84,7 @@ class ShieldBeeStore: ObservableObject {
     @Published var blockCount: Int                   = 0
     @Published var isLoading: Bool                   = false
 
-    private static let appGroupID = "group.shieldbug.ShieldBug"
+    private static let appGroupID = "group.shieldbee.ShieldBee"
     private let defaults = UserDefaults(suiteName: ShieldBeeStore.appGroupID)!
     private let encoder  = JSONEncoder()
     private let decoder  = JSONDecoder()

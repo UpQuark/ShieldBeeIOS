@@ -1,13 +1,13 @@
 //
-//  ShieldBugUITestsLaunchTests.swift
-//  ShieldBugUITests
+//  ShieldBeeUITestsLaunchTests.swift
+//  ShieldBeeUITests
 //
 //  Created by Sam Ennis on 5/28/25.
 //
 
 import XCTest
 
-final class ShieldBugUITestsLaunchTests: XCTestCase {
+final class ShieldBeeUITestsLaunchTests: XCTestCase {
 
     override class var runsForEachTargetApplicationUIConfiguration: Bool {
         true

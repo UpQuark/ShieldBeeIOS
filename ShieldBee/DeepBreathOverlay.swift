@@ -1,6 +1,6 @@
 //
 //  DeepBreathOverlay.swift
-//  ShieldBug
+//  ShieldBee
 //
 //  Full-screen countdown gate shown when the app comes to foreground.
 //  Cannot be dismissed — onComplete fires once the timer reaches zero.

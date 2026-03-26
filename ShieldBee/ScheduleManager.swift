@@ -1,6 +1,6 @@
 //
 //  ScheduleManager.swift
-//  ShieldBug
+//  ShieldBee
 //
 //  Evaluates block schedules and drives the VPN on/off accordingly.
 //  Called on app foreground and at app launch.

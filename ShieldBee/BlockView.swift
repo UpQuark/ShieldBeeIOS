@@ -1,6 +1,6 @@
 //
 //  BlockView.swift
-//  ShieldBug
+//  ShieldBee
 //
 //  Created by Sam Ennis on 5/28/25.
 //
@@ -100,7 +100,7 @@ struct BlockView: View {
             .alert("VPN Permission Required", isPresented: $showingPermissionAlert) {
                 Button("OK") {}
             } message: {
-                Text("ShieldBug needs VPN permission to block websites. Please allow VPN configuration in the system dialog, then try again.")
+                Text("ShieldBee needs VPN permission to block websites. Please allow VPN configuration in the system dialog, then try again.")
             }
             .alert("VPN Error", isPresented: Binding(
                 get: { vpnManager.errorMessage != nil },
