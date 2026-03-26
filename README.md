@@ -35,15 +35,9 @@ brew install librsvg   # one-time
 make icons
 ```
 
-This renders three 1024×1024 PNGs into `ShieldBee/Assets.xcassets/AppIcon.appiconset/`:
+This renders three 1024×1024 PNGs into `ShieldBee/Assets.xcassets/AppIcon.appiconset/`, all using the same source SVG on a `#0f0a00` background — the primary dark background from `MuiTheme.ts` in the web extension, used throughout the app UI.
 
-| Variant | Background | Colour |
-|---------|-----------|--------|
-| Light (default) | `#FF9800` | sbOrange — primary brand orange |
-| Dark | `#231500` | sbDarkPaper — warm near-black |
-| Tinted | `#D58F3C` | sbLogoGold — mid-tone gold; iOS applies system tint on top |
-
-The source SVG lives at `assets/icon-light.svg`. The script (`scripts/generate-icons.sh`) wraps it with each background at render time — no separate per-variant SVG files are needed.
+The source SVG is `assets/icon-light.svg`. The script wraps it with the background at render time.
 
 Run `make icons` after modifying the source SVG, then rebuild.
 
