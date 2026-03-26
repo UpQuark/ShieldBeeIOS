@@ -25,38 +25,29 @@ SOURCE_SVG="$REPO_ROOT/assets/icon-light.svg"
 ICON_DIR="$REPO_ROOT/ShieldBee/Assets.xcassets/AppIcon.appiconset"
 SIZE=1024
 BG="#0f0a00"
+PADDING_PCT=8   # percentage of canvas size padded on each side
+
+INNER=$(echo "$SIZE $PADDING_PCT" | awk '{printf "%d", $1 * (1 - 2 * $2 / 100)}')
 
 if ! command -v rsvg-convert &>/dev/null; then
   echo "Error: rsvg-convert not found. Install with: brew install librsvg" >&2
   exit 1
 fi
-
+if ! command -v magick &>/dev/null; then
+  echo "Error: magick not found. Install with: brew install imagemagick" >&2
+  exit 1
+fi
 if [[ ! -f "$SOURCE_SVG" ]]; then
   echo "Error: missing $SOURCE_SVG" >&2
   exit 1
 fi
 
-render_with_bg() {
-  local out_png="$1"
-  local tmp
-  tmp="$(mktemp /tmp/shieldbee-icon-XXXXXX.svg)"
+echo "Generating app icons (${SIZE}x${SIZE}, bg=${BG}, padding=${PADDING_PCT}%)..."
 
-  cat > "$tmp" <<SVGEOF
-<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-  <rect width="128" height="128" fill="${BG}"/>
-  <image xlink:href="${SOURCE_SVG}" x="0" y="0" width="128" height="128"/>
-</svg>
-SVGEOF
-
+for out_png in "$ICON_DIR/AppIcon.png" "$ICON_DIR/AppIcon-Dark.png" "$ICON_DIR/AppIcon-Tinted.png"; do
   echo "  → $(basename "$out_png")"
-  rsvg-convert -w "$SIZE" -h "$SIZE" -o "$out_png" "$tmp"
-  rm "$tmp"
-}
-
-echo "Generating app icons (${SIZE}x${SIZE}, bg=${BG})..."
-
-render_with_bg "$ICON_DIR/AppIcon.png"
-render_with_bg "$ICON_DIR/AppIcon-Dark.png"
-render_with_bg "$ICON_DIR/AppIcon-Tinted.png"
+  rsvg-convert -w "$INNER" -h "$INNER" "$SOURCE_SVG" \
+    | magick PNG:- -background "$BG" -gravity center -extent "${SIZE}x${SIZE}" "$out_png"
+done
 
 echo "Done. Icons written to $ICON_DIR"
