@@ -1,6 +1,6 @@
 //
 //  VPNManager.swift
-//  ShieldBug
+//  ShieldBee
 //
 //  Created by Sam Ennis on 5/28/25.
 //
@@ -9,17 +9,21 @@ import Foundation
 import NetworkExtension
 
 class VPNManager: ObservableObject {
+    static let shared = VPNManager()
+
     @Published var isConnected = false
     @Published var connectionStatus: NEVPNStatus = .invalid
     @Published var errorMessage: String? = nil
 
     private var vpnManager: NETunnelProviderManager?
-    
+
+    private static let appGroupID = "group.shieldbee.ShieldBee"
+
     static var blockedURLs: [String] {
-        UserDefaults.standard.stringArray(forKey: "blockedURLs") ?? []
+        UserDefaults(suiteName: appGroupID)?.stringArray(forKey: "blockedURLs") ?? []
     }
-    
-    init() {
+
+    private init() {
         setupVPN()
         observeVPNStatus()
     }
@@ -39,9 +43,9 @@ class VPNManager: ObservableObject {
             } else {
                 // First launch — create config and trigger permission dialog
                 let manager = NETunnelProviderManager()
-                manager.localizedDescription = "ShieldBug VPN"
+                manager.localizedDescription = "ShieldBee VPN"
                 let proto = NETunnelProviderProtocol()
-                proto.providerBundleIdentifier = "shieldbug.ShieldBug.ShieldBug-VPN-Extension"
+                proto.providerBundleIdentifier = "shieldbee.ShieldBee.ShieldBee-VPN-Extension"
                 proto.serverAddress = "127.0.0.1"
                 manager.protocolConfiguration = proto
                 manager.isEnabled = true
@@ -67,6 +71,22 @@ class VPNManager: ObservableObject {
         ) { [weak self] _ in
             self?.updateConnectionStatus()
         }
+
+        // Send updated block list to the running extension (no tunnel restart needed).
+        NotificationCenter.default.addObserver(
+            forName: .blockListDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.sendBlockListToExtension()
+        }
+    }
+
+    private func sendBlockListToExtension() {
+        guard let session = vpnManager?.connection as? NETunnelProviderSession,
+              vpnManager?.connection.status == .connected else { return }
+        guard let data = try? JSONEncoder().encode(VPNManager.blockedURLs) else { return }
+        try? session.sendProviderMessage(data) { _ in }
     }
     
     private func updateConnectionStatus() {
@@ -78,20 +98,19 @@ class VPNManager: ObservableObject {
     
     func toggleVPN() {
         guard let vpnManager = vpnManager else { return }
-        
-        if vpnManager.connection.status == .connected {
-            disconnectVPN()
-        } else {
-            connectVPN()
-        }
+        if vpnManager.connection.status == .connected { disconnect() }
+        else { connect() }
     }
-    
+
+    func connect() { connectVPN() }
+    func disconnect() { disconnectVPN() }
+
     private func connectVPN() {
         guard let vpnManager = vpnManager else { return }
         
         // Configure the VPN
         let protocolConfiguration = NETunnelProviderProtocol()
-        protocolConfiguration.providerBundleIdentifier = "shieldbug.ShieldBug.ShieldBug-VPN-Extension"
+        protocolConfiguration.providerBundleIdentifier = "shieldbee.ShieldBee.ShieldBee-VPN-Extension"
         protocolConfiguration.serverAddress = "127.0.0.1" // Local VPN
         
         // Pass blocked URLs to the VPN extension
@@ -100,7 +119,7 @@ class VPNManager: ObservableObject {
         ]
         
         vpnManager.protocolConfiguration = protocolConfiguration
-        vpnManager.localizedDescription = "ShieldBug VPN"
+        vpnManager.localizedDescription = "ShieldBee VPN"
         vpnManager.isEnabled = true
         
         // Save the configuration
