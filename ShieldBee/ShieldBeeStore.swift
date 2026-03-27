@@ -238,7 +238,11 @@ class ShieldBeeStore: ObservableObject {
 
         // Migrate from the old flat-array format written directly by HomeView.
         // The old key "blockedURLs" held a [String]; new storage is store.blockedSites (JSON).
-        if blockedSites.isEmpty {
+        // Guard on the absence of the new key (not emptiness of the decoded array) so that
+        // users who only have categories enabled — and therefore have no individual blockedSites —
+        // don't trigger this migration on every launch. syncToVPN() writes category domains to
+        // "blockedURLs" too, which would otherwise be misread as individually-blocked sites.
+        if defaults.data(forKey: Keys.blockedSites) == nil {
             let oldURLs = defaults.stringArray(forKey: "blockedURLs") ?? []
             if !oldURLs.isEmpty {
                 blockedSites = oldURLs.map { BlockedSite(domain: $0) }
