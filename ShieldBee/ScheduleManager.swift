@@ -112,9 +112,14 @@ class ScheduleManager {
         guard !enabled.isEmpty else { return }
 
         if isActive(schedules: enabled) {
-            if !VPNManager.shared.isConnected { VPNManager.shared.connect() }
+            if !VPNManager.shared.isConnected {
+                ShieldBeeStore.shared.isScheduleControlled = true
+                VPNManager.shared.connect()
+            }
         } else {
-            if VPNManager.shared.isConnected { VPNManager.shared.disconnect() }
+            if VPNManager.shared.isConnected && ShieldBeeStore.shared.isScheduleControlled {
+                VPNManager.shared.disconnect()
+            }
         }
     }
 }

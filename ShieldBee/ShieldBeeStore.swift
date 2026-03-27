@@ -83,6 +83,7 @@ class ShieldBeeStore: ObservableObject {
     @Published var preferences: UserPreferences      = UserPreferences()
     @Published var blockCount: Int                   = 0
     @Published var isLoading: Bool                   = false
+    @Published var isScheduleControlled: Bool        = false
 
     private static let appGroupID = "group.shieldbee.ShieldBee"
     private let defaults = UserDefaults(suiteName: ShieldBeeStore.appGroupID)!

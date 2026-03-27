@@ -98,6 +98,7 @@ class VPNManager: ObservableObject {
     
     func toggleVPN() {
         guard let vpnManager = vpnManager else { return }
+        ShieldBeeStore.shared.isScheduleControlled = false
         if vpnManager.connection.status == .connected { disconnect() }
         else { connect() }
     }
