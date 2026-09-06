@@ -118,6 +118,9 @@ class ShieldBeeStore: ObservableObject {
     @Published var preferences: UserPreferences      = UserPreferences()
     @Published var blockCount: Int                   = 0
     @Published var isLoading: Bool                   = false
+    /// True while the VPN connection was opened by a schedule rather than by the user.
+    /// Deliberately in-memory only: a manual connection should survive a relaunch as manual.
+    @Published var isScheduleControlled: Bool        = false
 
     /// Must match `com.apple.security.application-groups` in both targets' entitlements and the
     /// provisioning profile. iOS does not error on an un-entitled group — it silently returns
