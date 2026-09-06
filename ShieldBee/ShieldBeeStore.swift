@@ -62,12 +62,44 @@ enum AppTheme: String, Codable, CaseIterable, Identifiable {
     var displayName: String { rawValue.capitalized }
 }
 
+/// How the app lock challenges the user. PIN is digits-only on a custom numpad;
+/// password accepts any characters on the system keyboard.
+enum LockType: String, Codable, CaseIterable, Identifiable {
+    case pin, password
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .pin:      return "PIN"
+        case .password: return "Password"
+        }
+    }
+}
+
 struct UserPreferences: Codable {
     var theme: AppTheme         = .system
     var deepBreathEnabled: Bool = false
     var deepBreathDuration: Int = 10     // seconds
     var deterrentEnabled: Bool  = false
     var masterBlockingEnabled: Bool = true
+    var lockType: LockType      = .pin
+
+    init() {}
+
+    /// Decoded field-by-field with `decodeIfPresent` rather than relying on the synthesized
+    /// initialiser. The synthesized one throws when a key is missing, which for stored
+    /// preferences means the whole blob fails to decode and every setting silently resets to
+    /// default. Adding any new preference would otherwise wipe existing users' settings.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = UserPreferences()
+        theme                 = try c.decodeIfPresent(AppTheme.self, forKey: .theme)              ?? d.theme
+        deepBreathEnabled     = try c.decodeIfPresent(Bool.self,     forKey: .deepBreathEnabled)  ?? d.deepBreathEnabled
+        deepBreathDuration    = try c.decodeIfPresent(Int.self,      forKey: .deepBreathDuration) ?? d.deepBreathDuration
+        deterrentEnabled      = try c.decodeIfPresent(Bool.self,     forKey: .deterrentEnabled)   ?? d.deterrentEnabled
+        masterBlockingEnabled = try c.decodeIfPresent(Bool.self,     forKey: .masterBlockingEnabled) ?? d.masterBlockingEnabled
+        lockType              = try c.decodeIfPresent(LockType.self, forKey: .lockType)           ?? d.lockType
+    }
 }
 
 // MARK: - Store

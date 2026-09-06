@@ -15,6 +15,8 @@ struct SettingsView: View {
     @State private var showPINSetup  = false
     @State private var showPINChange = false
     @State private var showPINRemoveAlert = false
+    /// Non-nil while switching lock type — carries the type being switched to.
+    @State private var pendingLockType: LockType? = nil
 
     var body: some View {
         NavigationView {
@@ -43,26 +45,35 @@ struct SettingsView: View {
                     Text("Shows a countdown every time you open the app. You can't change any settings until the timer runs out — giving you a moment to reconsider before disabling your blocks.")
                 }
 
-                // MARK: PIN Protection
+                // MARK: App Lock
                 Section {
+                    Picker("Lock with", selection: Binding(
+                        get: { store.preferences.lockType },
+                        set: { setLockType($0) }
+                    )) {
+                        ForEach(LockType.allCases) { type in
+                            Text(type.displayName).tag(type)
+                        }
+                    }
+
                     if hasPIN {
                         Button { showPINChange = true } label: {
-                            Label("Change PIN", systemImage: "key.fill")
+                            Label("Change \(lockNoun)", systemImage: "key.fill")
                         }
                         Button(role: .destructive) { showPINRemoveAlert = true } label: {
-                            Label("Remove PIN", systemImage: "lock.open.fill")
+                            Label("Remove \(lockNoun)", systemImage: "lock.open.fill")
                         }
                     } else {
                         Button { showPINSetup = true } label: {
-                            Label("Set PIN Protection", systemImage: "lock.fill")
+                            Label("Set \(lockNoun) Protection", systemImage: "lock.fill")
                         }
                     }
                 } header: {
-                    Text("PIN Protection")
+                    Text("App Lock")
                 } footer: {
                     Text(hasPIN
-                         ? "A PIN is required each time you open the app. Face ID or Touch ID can be used instead."
-                         : "Require a PIN when opening the app. Prevents impulsive changes even if someone else has your phone.")
+                         ? "A \(lockNoun.lowercased()) is required each time you open the app. Face ID or Touch ID can be used instead."
+                         : "Require a \(lockNoun.lowercased()) when opening the app. Prevents impulsive changes even if someone else has your phone. A PIN is digits only; a password accepts any characters.")
                 }
 
                 // MARK: Appearance
@@ -123,6 +134,10 @@ struct SettingsView: View {
         .sheet(isPresented: $showPINChange, onDismiss: { hasPIN = KeychainManager.hasPin }) {
             PINEntryView(mode: .change) { showPINChange = false }
         }
+        // Lock-type switch (verify current in the old style → set new in the new style)
+        .sheet(item: $pendingLockType, onDismiss: { hasPIN = KeychainManager.hasPin }) { target in
+            PINEntryView(mode: .changeType(to: target)) { pendingLockType = nil }
+        }
         // Remove PIN confirmation
         .alert("Remove PIN?", isPresented: $showPINRemoveAlert) {
             Button("Remove", role: .destructive) {
@@ -136,6 +151,22 @@ struct SettingsView: View {
     }
 
     // MARK: - Helpers
+
+    private var lockNoun: String { store.preferences.lockType.displayName }
+
+    /// Switching type re-verifies first, because otherwise anyone holding the unlocked phone
+    /// could hop to the other style and set a fresh secret without knowing the current one.
+    /// With no secret set yet there is nothing to bypass, so apply it directly.
+    private func setLockType(_ type: LockType) {
+        guard type != store.preferences.lockType else { return }
+        if hasPIN {
+            pendingLockType = type
+        } else {
+            var p = store.preferences
+            p.lockType = type
+            store.updatePreferences(p)
+        }
+    }
 
     private func setBreath(enabled: Bool) {
         var p = store.preferences

@@ -2,12 +2,16 @@
 //  PINEntryView.swift
 //  ShieldBee
 //
-//  PIN gate with an internal state machine (unlimited length):
+//  The app-lock gate. Supports two input styles, chosen by `UserPreferences.lockType`:
+//    .pin      → digits only, on the custom numpad below
+//    .password → any characters, on the system keyboard in a masked field
+//
+//  Internal state machine (unlimited length, either style):
 //    .verify      → check against Keychain
-//    .setNew      → enter a new PIN
+//    .setNew      → enter a new secret
 //    .confirmNew  → re-enter to confirm, then save
 //
-//  "Forgot PIN?" resets the Keychain entry and forces a new PIN to be set immediately.
+//  "Forgot?" resets the Keychain entry and forces a new secret to be set immediately.
 //
 
 import SwiftUI
@@ -15,10 +19,11 @@ import LocalAuthentication
 
 struct PINEntryView: View {
 
-    enum Mode {
-        case gate    // app foreground lock — verify (or set if none exists)
-        case setup   // settings "Set PIN" — go straight to setNew
-        case change  // settings "Change PIN" — verify current, then setNew
+    enum Mode: Equatable {
+        case gate                      // app foreground lock — verify (or set if none exists)
+        case setup                     // settings "Set PIN" — go straight to setNew
+        case change                    // settings "Change PIN" — verify current, then setNew
+        case changeType(to: LockType)  // settings type switch — verify current, then set in the new style
     }
 
     private enum Phase: Equatable {
@@ -38,18 +43,20 @@ struct PINEntryView: View {
     let mode: Mode
     let onComplete: () -> Void
 
+    @ObservedObject private var store = ShieldBeeStore.shared
     @State private var phase: Phase
     @State private var entered = ""
     @State private var errorMessage: String? = nil
     @State private var showForgotAlert = false
+    @FocusState private var passwordFieldFocused: Bool
 
     init(mode: Mode, onComplete: @escaping () -> Void) {
         self.mode = mode
         self.onComplete = onComplete
         switch mode {
-        case .gate:   _phase = State(initialValue: KeychainManager.hasPin ? .verify : .setNew)
-        case .setup:  _phase = State(initialValue: .setNew)
-        case .change: _phase = State(initialValue: .verify)
+        case .gate, .changeType: _phase = State(initialValue: KeychainManager.hasPin ? .verify : .setNew)
+        case .setup:             _phase = State(initialValue: .setNew)
+        case .change:            _phase = State(initialValue: .verify)
         }
     }
 
@@ -84,53 +91,15 @@ struct PINEntryView: View {
                 }
                 .padding(.bottom, 44)
 
-                // Dot indicators — up to 12 shown, then a count
-                Group {
-                    if entered.count <= 12 {
-                        HStack(spacing: 10) {
-                            ForEach(0..<max(entered.count, 1), id: \.self) { i in
-                                Circle()
-                                    .fill(i < entered.count ? Color.sbOrange : Color.white.opacity(0.22))
-                                    .frame(width: 12, height: 12)
-                                    .animation(.spring(response: 0.2), value: entered.count)
-                            }
-                        }
-                    } else {
-                        Text("\(entered.count) digits entered")
-                            .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(Color.sbOrange)
-                    }
+                if activeLockType == .pin {
+                    pinInput
+                } else {
+                    passwordInput
                 }
-                .frame(height: 20)
-                .padding(.bottom, 52)
 
-                // Numpad
-                VStack(spacing: 18) {
-                    ForEach([[1, 2, 3], [4, 5, 6], [7, 8, 9]], id: \.self) { row in
-                        HStack(spacing: 20) {
-                            ForEach(row, id: \.self) { digit in
-                                PINButton(label: "\(digit)") { append("\(digit)") }
-                            }
-                        }
-                    }
-                    HStack(spacing: 20) {
-                        // Biometric when verify + nothing typed; confirm (✓) otherwise
-                        if phase == .verify && entered.isEmpty {
-                            PINButton(systemImage: biometricIcon) { tryBiometric() }
-                        } else {
-                            PINButton(systemImage: "checkmark") { submit() }
-                                .opacity(entered.isEmpty ? 0.3 : 1)
-                                .disabled(entered.isEmpty)
-                        }
-                        PINButton(label: "0") { append("0") }
-                        PINButton(systemImage: "delete.left") { backspace() }
-                    }
-                }
-                .padding(.bottom, 40)
-
-                // Forgot PIN — deemphasised, gate mode only
+                // Forgot — deemphasised, gate mode only
                 if phase == .verify && mode == .gate {
-                    Button("Forgot PIN?") { showForgotAlert = true }
+                    Button("Forgot \(activeLockType.displayName)?") { showForgotAlert = true }
                         .font(.footnote)
                         .foregroundStyle(.white.opacity(0.28))
                 }
@@ -138,8 +107,8 @@ struct PINEntryView: View {
                 Spacer()
             }
         }
-        .alert("Reset PIN?", isPresented: $showForgotAlert) {
-            Button("Reset and set new PIN", role: .destructive) {
+        .alert("Reset \(activeLockType.displayName)?", isPresented: $showForgotAlert) {
+            Button("Reset and set new", role: .destructive) {
                 KeychainManager.clearPin()
                 entered = ""
                 errorMessage = nil
@@ -147,30 +116,148 @@ struct PINEntryView: View {
             }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Your current PIN will be cleared. You must create a new one immediately.")
+            Text("Your current \(activeLockType.displayName.lowercased()) will be cleared. You must create a new one immediately.")
         }
         .onAppear {
             // Offer biometrics automatically when verifying at the gate
             if phase == .verify && mode == .gate { tryBiometric() }
+            if activeLockType == .password { passwordFieldFocused = true }
         }
+        .onChange(of: phase) { _, _ in
+            if activeLockType == .password { passwordFieldFocused = true }
+        }
+    }
+
+    // MARK: - PIN input (numpad)
+
+    private var pinInput: some View {
+        VStack(spacing: 0) {
+            // Dot indicators — up to 12 shown, then a count
+            Group {
+                if entered.count <= 12 {
+                    HStack(spacing: 10) {
+                        ForEach(0..<max(entered.count, 1), id: \.self) { i in
+                            Circle()
+                                .fill(i < entered.count ? Color.sbOrange : Color.white.opacity(0.22))
+                                .frame(width: 12, height: 12)
+                                .animation(.spring(response: 0.2), value: entered.count)
+                        }
+                    }
+                } else {
+                    Text("\(entered.count) digits entered")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(Color.sbOrange)
+                }
+            }
+            .frame(height: 20)
+            .padding(.bottom, 52)
+
+            // Numpad
+            VStack(spacing: 18) {
+                ForEach([[1, 2, 3], [4, 5, 6], [7, 8, 9]], id: \.self) { row in
+                    HStack(spacing: 20) {
+                        ForEach(row, id: \.self) { digit in
+                            PINButton(label: "\(digit)") { append("\(digit)") }
+                        }
+                    }
+                }
+                HStack(spacing: 20) {
+                    // Biometric when verify + nothing typed; confirm (✓) otherwise
+                    if phase == .verify && entered.isEmpty && biometricAvailable {
+                        PINButton(systemImage: biometricIcon) { tryBiometric() }
+                    } else {
+                        PINButton(systemImage: "checkmark") { submit() }
+                            .opacity(entered.isEmpty ? 0.3 : 1)
+                            .disabled(entered.isEmpty)
+                    }
+                    PINButton(label: "0") { append("0") }
+                    PINButton(systemImage: "delete.left") { backspace() }
+                }
+            }
+            .padding(.bottom, 40)
+        }
+    }
+
+    // MARK: - Password input (system keyboard)
+
+    private var passwordInput: some View {
+        VStack(spacing: 20) {
+            SecureField("", text: $entered)
+                .textContentType(.password)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .focused($passwordFieldFocused)
+                .submitLabel(.go)
+                .onSubmit { submit() }
+                .onChange(of: entered) { _, _ in errorMessage = nil }
+                .font(.title3)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 16)
+                .frame(height: 52)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color.white.opacity(0.1))
+                )
+                .padding(.horizontal, 40)
+
+            HStack(spacing: 16) {
+                if phase == .verify && biometricAvailable {
+                    Button { tryBiometric() } label: {
+                        Image(systemName: biometricIcon)
+                            .font(.system(size: 22))
+                            .foregroundStyle(.white)
+                            .frame(width: 52, height: 52)
+                            .background(Circle().fill(Color.white.opacity(0.1)))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button { submit() } label: {
+                    Text("Continue")
+                        .font(.headline)
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Color.sbOrange))
+                }
+                .buttonStyle(.plain)
+                .opacity(entered.isEmpty ? 0.3 : 1)
+                .disabled(entered.isEmpty)
+            }
+            .padding(.horizontal, 40)
+        }
+        .padding(.bottom, 40)
     }
 
     // MARK: - Computed
 
+    /// The lock style in play for the current phase. When switching types we verify with the
+    /// old style, then set the new secret in the style being switched to.
+    private var activeLockType: LockType {
+        if case .changeType(let target) = mode, phase != .verify { return target }
+        return store.preferences.lockType
+    }
+
+    private var noun: String { activeLockType.displayName }
+
     private var title: String {
         switch phase {
-        case .verify:     return mode == .gate ? "Unlock ShieldBee" : "Enter current PIN"
-        case .setNew:     return "Set a PIN"
-        case .confirmNew: return "Confirm PIN"
+        case .verify:     return mode == .gate ? "Unlock ShieldBee" : "Enter current \(noun.lowercased())"
+        case .setNew:     return "Set a \(noun.lowercased())"
+        case .confirmNew: return "Confirm \(noun.lowercased())"
         }
     }
 
     private var subtitle: String {
         switch phase {
-        case .verify:     return "Enter your PIN"
-        case .setNew:     return "Choose a PIN"
-        case .confirmNew: return "Re-enter your new PIN"
+        case .verify:     return "Enter your \(noun.lowercased())"
+        case .setNew:     return "Choose a \(noun.lowercased())"
+        case .confirmNew: return "Re-enter your new \(noun.lowercased())"
         }
+    }
+
+    private var biometricAvailable: Bool {
+        LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
     }
 
     private var biometricIcon: String {
@@ -193,10 +280,12 @@ struct PINEntryView: View {
     }
 
     private func submit() {
+        guard !entered.isEmpty else { return }
+
         switch phase {
         case .verify:
             if KeychainManager.verifyPin(entered) {
-                if mode == .change {
+                if mode == .change || isChangeType {
                     entered = ""
                     withAnimation { phase = .setNew }
                 } else {
@@ -204,7 +293,7 @@ struct PINEntryView: View {
                 }
             } else {
                 entered = ""
-                withAnimation { errorMessage = "Incorrect PIN. Try again." }
+                withAnimation { errorMessage = "Incorrect \(noun.lowercased()). Try again." }
             }
 
         case .setNew:
@@ -215,15 +304,30 @@ struct PINEntryView: View {
         case .confirmNew(let first):
             if entered == first {
                 KeychainManager.savePin(entered)
+                commitLockTypeIfNeeded()
                 onComplete()
             } else {
                 entered = ""
                 withAnimation {
-                    errorMessage = "PINs don't match. Try again."
+                    errorMessage = "\(noun)s don't match. Try again."
                     phase = .setNew
                 }
             }
         }
+    }
+
+    private var isChangeType: Bool {
+        if case .changeType = mode { return true }
+        return false
+    }
+
+    /// Only persist the new lock type once the new secret is actually saved, so an abandoned
+    /// switch leaves the user on their original style with their original secret intact.
+    private func commitLockTypeIfNeeded() {
+        guard case .changeType(let target) = mode else { return }
+        var prefs = store.preferences
+        prefs.lockType = target
+        store.updatePreferences(prefs)
     }
 
     private func tryBiometric() {
