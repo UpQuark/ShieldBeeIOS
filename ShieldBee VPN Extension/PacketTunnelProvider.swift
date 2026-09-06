@@ -39,7 +39,9 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         "dns.controld.com", "freedns.controld.com",
     ]
 
-    private static let appGroupID = "group.shieldbee.ShieldBee"
+    /// Must match the group in this target's entitlements and the containing app's.
+    /// A mismatch yields private storage instead of the shared container, silently.
+    private static let appGroupID = "group.shieldbug.ShieldBug"
 
     // MARK: - Lifecycle
 

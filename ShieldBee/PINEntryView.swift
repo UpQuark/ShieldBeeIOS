@@ -24,6 +24,7 @@ struct PINEntryView: View {
         case setup                     // settings "Set PIN" — go straight to setNew
         case change                    // settings "Change PIN" — verify current, then setNew
         case changeType(to: LockType)  // settings type switch — verify current, then set in the new style
+        case confirm                   // re-authenticate before a sensitive settings change
     }
 
     private enum Phase: Equatable {
@@ -56,7 +57,7 @@ struct PINEntryView: View {
         switch mode {
         case .gate, .changeType: _phase = State(initialValue: KeychainManager.hasPin ? .verify : .setNew)
         case .setup:             _phase = State(initialValue: .setNew)
-        case .change:            _phase = State(initialValue: .verify)
+        case .change, .confirm:  _phase = State(initialValue: .verify)
         }
     }
 
@@ -119,8 +120,8 @@ struct PINEntryView: View {
             Text("Your current \(activeLockType.displayName.lowercased()) will be cleared. You must create a new one immediately.")
         }
         .onAppear {
-            // Offer biometrics automatically when verifying at the gate
-            if phase == .verify && mode == .gate { tryBiometric() }
+            // Offer biometrics automatically when verifying at the gate, opt-in only
+            if phase == .verify && mode == .gate && biometricUnlockAllowed { tryBiometric() }
             if activeLockType == .password { passwordFieldFocused = true }
         }
         .onChange(of: phase) { _, _ in
@@ -163,7 +164,7 @@ struct PINEntryView: View {
                 }
                 HStack(spacing: 20) {
                     // Biometric when verify + nothing typed; confirm (✓) otherwise
-                    if phase == .verify && entered.isEmpty && biometricAvailable {
+                    if phase == .verify && entered.isEmpty && biometricUnlockAllowed {
                         PINButton(systemImage: biometricIcon) { tryBiometric() }
                     } else {
                         PINButton(systemImage: "checkmark") { submit() }
@@ -201,7 +202,7 @@ struct PINEntryView: View {
                 .padding(.horizontal, 40)
 
             HStack(spacing: 16) {
-                if phase == .verify && biometricAvailable {
+                if phase == .verify && biometricUnlockAllowed {
                     Button { tryBiometric() } label: {
                         Image(systemName: biometricIcon)
                             .font(.system(size: 22))
@@ -242,7 +243,12 @@ struct PINEntryView: View {
 
     private var title: String {
         switch phase {
-        case .verify:     return mode == .gate ? "Unlock ShieldBee" : "Enter current \(noun.lowercased())"
+        case .verify:
+            switch mode {
+            case .gate:    return "Unlock ShieldBee"
+            case .confirm: return "Confirm it's you"
+            default:       return "Enter current \(noun.lowercased())"
+            }
         case .setNew:     return "Set a \(noun.lowercased())"
         case .confirmNew: return "Confirm \(noun.lowercased())"
         }
@@ -256,15 +262,13 @@ struct PINEntryView: View {
         }
     }
 
-    private var biometricAvailable: Bool {
-        LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+    /// Biometrics are offered only when the hardware exists *and* the user has opted in.
+    /// Off by default — see `UserPreferences.biometricUnlockEnabled`.
+    private var biometricUnlockAllowed: Bool {
+        store.preferences.biometricUnlockEnabled && BiometricAuth.isAvailable
     }
 
-    private var biometricIcon: String {
-        let ctx = LAContext()
-        _ = ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
-        return ctx.biometryType == .faceID ? "faceid" : "touchid"
-    }
+    private var biometricIcon: String { BiometricAuth.iconName }
 
     // MARK: - Input
 
@@ -331,6 +335,7 @@ struct PINEntryView: View {
     }
 
     private func tryBiometric() {
+        guard biometricUnlockAllowed else { return }
         let ctx = LAContext()
         var error: NSError?
         guard ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else { return }
@@ -373,5 +378,31 @@ private struct PINButton: View {
             }
         }
         .buttonStyle(.plain)
+    }
+}
+
+// MARK: - Biometric availability
+
+/// Hardware capability only — whether the user has *opted in* is a separate preference.
+enum BiometricAuth {
+    static var isAvailable: Bool {
+        LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+    }
+
+    /// "Face ID" / "Touch ID", for user-facing labels.
+    static var displayName: String {
+        let ctx = LAContext()
+        _ = ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+        switch ctx.biometryType {
+        case .faceID:  return "Face ID"
+        case .touchID: return "Touch ID"
+        default:       return "Biometric unlock"
+        }
+    }
+
+    static var iconName: String {
+        let ctx = LAContext()
+        _ = ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+        return ctx.biometryType == .faceID ? "faceid" : "touchid"
     }
 }
