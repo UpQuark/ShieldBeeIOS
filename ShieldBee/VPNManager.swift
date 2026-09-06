@@ -17,7 +17,8 @@ class VPNManager: ObservableObject {
 
     private var vpnManager: NETunnelProviderManager?
 
-    private static let appGroupID = "group.shieldbee.ShieldBee"
+    /// Must match the entitled group — see ShieldBeeStore.appGroupID.
+    private static let appGroupID = "group.shieldbug.ShieldBug"
 
     static var blockedURLs: [String] {
         UserDefaults(suiteName: appGroupID)?.stringArray(forKey: "blockedURLs") ?? []
@@ -96,8 +97,13 @@ class VPNManager: ObservableObject {
         isConnected = vpnManager.connection.status == .connected
     }
     
+    /// Main-actor isolated because it touches the store, and because its only caller is the
+    /// Setup tab's toggle, which is already on the main actor.
+    @MainActor
     func toggleVPN() {
         guard let vpnManager = vpnManager else { return }
+        // Any flip from the UI is a manual decision, so schedules stop owning this connection.
+        ShieldBeeStore.shared.isScheduleControlled = false
         if vpnManager.connection.status == .connected { disconnect() }
         else { connect() }
     }
