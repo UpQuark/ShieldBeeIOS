@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var showPINRemoveAlert = false
     /// Non-nil while switching lock type — carries the type being switched to.
     @State private var pendingLockType: LockType? = nil
+    @State private var showBiometricConfirm = false
 
     var body: some View {
         NavigationView {
@@ -68,12 +69,21 @@ struct SettingsView: View {
                             Label("Set \(lockNoun) Protection", systemImage: "lock.fill")
                         }
                     }
+
+                    if BiometricAuth.isAvailable {
+                        Toggle(isOn: Binding(
+                            get: { store.preferences.biometricUnlockEnabled },
+                            set: { setBiometric(enabled: $0) }
+                        )) {
+                            Label("Allow \(BiometricAuth.displayName)",
+                                  systemImage: BiometricAuth.iconName)
+                        }
+                        .disabled(!hasPIN)
+                    }
                 } header: {
                     Text("App Lock")
                 } footer: {
-                    Text(hasPIN
-                         ? "A \(lockNoun.lowercased()) is required each time you open the app. Face ID or Touch ID can be used instead."
-                         : "Require a \(lockNoun.lowercased()) when opening the app. Prevents impulsive changes even if someone else has your phone. A PIN is digits only; a password accepts any characters.")
+                    Text(lockFooter)
                 }
 
                 // MARK: Appearance
@@ -134,6 +144,15 @@ struct SettingsView: View {
         .sheet(isPresented: $showPINChange, onDismiss: { hasPIN = KeychainManager.hasPin }) {
             PINEntryView(mode: .change) { showPINChange = false }
         }
+        // Re-authenticate before turning biometric unlock on
+        .sheet(isPresented: $showBiometricConfirm) {
+            PINEntryView(mode: .confirm) {
+                showBiometricConfirm = false
+                var p = store.preferences
+                p.biometricUnlockEnabled = true
+                store.updatePreferences(p)
+            }
+        }
         // Lock-type switch (verify current in the old style → set new in the new style)
         .sheet(item: $pendingLockType, onDismiss: { hasPIN = KeychainManager.hasPin }) { target in
             PINEntryView(mode: .changeType(to: target)) { pendingLockType = nil }
@@ -153,6 +172,29 @@ struct SettingsView: View {
     // MARK: - Helpers
 
     private var lockNoun: String { store.preferences.lockType.displayName }
+
+    private var lockFooter: String {
+        guard hasPIN else {
+            return "Require a \(lockNoun.lowercased()) when opening the app. Prevents impulsive changes even if someone else has your phone. A PIN is digits only; a password accepts any characters."
+        }
+        let base = "A \(lockNoun.lowercased()) is required each time you open the app."
+        guard BiometricAuth.isAvailable else { return base }
+        return store.preferences.biometricUnlockEnabled
+            ? "\(base) \(BiometricAuth.displayName) can be used instead."
+            : "\(base) \(BiometricAuth.displayName) is off, so your \(lockNoun.lowercased()) is always required — that friction is the point."
+    }
+
+    /// Turning biometrics *on* re-verifies first: otherwise someone holding the unlocked phone
+    /// could enable it and walk past the lock from then on. Turning it off is always safe.
+    private func setBiometric(enabled: Bool) {
+        if enabled {
+            showBiometricConfirm = true
+        } else {
+            var p = store.preferences
+            p.biometricUnlockEnabled = false
+            store.updatePreferences(p)
+        }
+    }
 
     /// Switching type re-verifies first, because otherwise anyone holding the unlocked phone
     /// could hop to the other style and set a fresh secret without knowing the current one.

@@ -83,6 +83,8 @@ struct UserPreferences: Codable {
     var deterrentEnabled: Bool  = false
     var masterBlockingEnabled: Bool = true
     var lockType: LockType      = .pin
+    /// Off by default: the lock exists to add friction, and a glance at the phone removes it.
+    var biometricUnlockEnabled: Bool = false
 
     init() {}
 
@@ -99,6 +101,7 @@ struct UserPreferences: Codable {
         deterrentEnabled      = try c.decodeIfPresent(Bool.self,     forKey: .deterrentEnabled)   ?? d.deterrentEnabled
         masterBlockingEnabled = try c.decodeIfPresent(Bool.self,     forKey: .masterBlockingEnabled) ?? d.masterBlockingEnabled
         lockType              = try c.decodeIfPresent(LockType.self, forKey: .lockType)           ?? d.lockType
+        biometricUnlockEnabled = try c.decodeIfPresent(Bool.self,    forKey: .biometricUnlockEnabled) ?? d.biometricUnlockEnabled
     }
 }
 
