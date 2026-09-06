@@ -119,13 +119,54 @@ class ShieldBeeStore: ObservableObject {
     @Published var blockCount: Int                   = 0
     @Published var isLoading: Bool                   = false
 
-    private static let appGroupID = "group.shieldbee.ShieldBee"
+    /// Must match `com.apple.security.application-groups` in both targets' entitlements and the
+    /// provisioning profile. iOS does not error on an un-entitled group — it silently returns
+    /// private per-process storage — so a mismatch here breaks app↔extension sharing invisibly.
+    static let appGroupID = "group.shieldbug.ShieldBug"
+    /// The un-entitled ID this app shipped with before SHI-50. Still readable (it resolves to
+    /// the same private fallback it always did), so existing data can be migrated out of it.
+    private static let legacyAppGroupID = "group.shieldbee.ShieldBee"
+
     private let defaults = UserDefaults(suiteName: ShieldBeeStore.appGroupID)!
     private let encoder  = JSONEncoder()
     private let decoder  = JSONDecoder()
 
     private init() {
+        AppGroup.assertShared(defaults)
+        migrateFromLegacyAppGroupIfNeeded()
         load()
+    }
+
+    /// One-shot copy out of the pre-SHI-50 app group. Between the ShieldBug→ShieldBee rename
+    /// (SHI-43) and SHI-50 the app asked for a group it was not entitled to, so every write
+    /// landed in private storage the VPN extension could never read.
+    ///
+    /// The entitled container is *not* empty — it holds pre-rename data, because the code used
+    /// the entitled ID back then. That data is stale by definition: every build since the rename
+    /// wrote to the private store instead. So the legacy store wins wherever it has data, and
+    /// the older shared values are preserved under a backup key rather than dropped.
+    private func migrateFromLegacyAppGroupIfNeeded() {
+        guard !defaults.bool(forKey: Keys.legacyGroupMigrated) else { return }
+        defer { defaults.set(true, forKey: Keys.legacyGroupMigrated) }
+
+        guard let legacy = UserDefaults(suiteName: Self.legacyAppGroupID) else { return }
+
+        let dataKeys = [Keys.blockedSites, Keys.categories, Keys.schedules, Keys.preferences]
+        guard dataKeys.contains(where: { legacy.data(forKey: $0) != nil }) else { return }
+
+        for key in dataKeys {
+            guard let incoming = legacy.data(forKey: key) else { continue }
+            if let existing = defaults.data(forKey: key) {
+                defaults.set(existing, forKey: key + Keys.preGroupFixBackupSuffix)
+            }
+            defaults.set(incoming, forKey: key)
+        }
+        if legacy.object(forKey: Keys.blockCount) != nil {
+            defaults.set(legacy.integer(forKey: Keys.blockCount), forKey: Keys.blockCount)
+        }
+        if let urls = legacy.stringArray(forKey: "blockedURLs") {
+            defaults.set(urls, forKey: "blockedURLs")
+        }
     }
 
     // MARK: - Blocked Sites
@@ -310,6 +351,10 @@ class ShieldBeeStore: ObservableObject {
         static let schedules    = "store.schedules"
         static let preferences  = "store.preferences"
         static let blockCount   = "store.blockCount"
+        /// Versioned: the first cut of the migration preferred the stale shared-container data,
+        /// so the key is bumped to let the corrected logic run once more.
+        static let legacyGroupMigrated = "store.legacyAppGroupMigrated.v2"
+        static let preGroupFixBackupSuffix = ".preAppGroupFix"
     }
 }
 
@@ -369,5 +414,24 @@ enum CategoryDomains {
                 "1xbet.com", "leovegas.com", "casumo.com", "betsson.com", "22bet.com",
             ]
         }
+    }
+}
+
+// MARK: - App group diagnostics
+
+enum AppGroup {
+    /// iOS returns a usable `UserDefaults` for an app group the process isn't entitled to — it
+    /// just isn't shared with anyone. That failure mode is invisible at runtime, so check it
+    /// explicitly: a shared suite has a container URL, the private fallback does not.
+    static func assertShared(_ defaults: UserDefaults, id: String = ShieldBeeStore.appGroupID) {
+        #if DEBUG
+        if FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id) == nil {
+            assertionFailure("""
+                App group "\(id)" is not entitled for this target. UserDefaults will silently \
+                fall back to private storage and the app and VPN extension will not share data. \
+                Check com.apple.security.application-groups in the entitlements files.
+                """)
+        }
+        #endif
     }
 }

@@ -17,7 +17,8 @@ class VPNManager: ObservableObject {
 
     private var vpnManager: NETunnelProviderManager?
 
-    private static let appGroupID = "group.shieldbee.ShieldBee"
+    /// Must match the entitled group — see ShieldBeeStore.appGroupID.
+    private static let appGroupID = "group.shieldbug.ShieldBug"
 
     static var blockedURLs: [String] {
         UserDefaults(suiteName: appGroupID)?.stringArray(forKey: "blockedURLs") ?? []
